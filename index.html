@@ -502,9 +502,9 @@
   <!-- ================= PRINT RECEIPT CONTAINER (HIDDEN ON SCREEN, VISIBLE ON PRINT) ================= -->
   <div id="printable-receipt" class="hidden">
     <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
-      <h2 style="font-size: 14px; font-weight: bold; margin: 0;">GAMEZONE PS3 LOUNGE</h2>
-      <p style="margin: 2px 0 0 0;">Jl. Gaming Raya No. 88, Kota Rental</p>
-      <p style="margin: 2px 0 0 0;">Telp: 0812-3456-7890</p>
+      <h2 style="font-size: 14px; font-weight: bold; margin: 0;">LANANG 2 BAHAGIA PS3</h2>
+      <p style="margin: 2px 0 0 0;">Jl.Raya Jagapura Lor - Blok Nyibanda</p>
+      <p style="margin: 2px 0 0 0;">WhatsApp : 0813-9561-0332</p>
     </div>
 
     <div style="margin-bottom: 8px; line-height: 1.4;">
@@ -565,7 +565,7 @@
 
     <div style="text-align: center; border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px; font-size: 10px;">
       <p style="margin: 0; font-weight: bold;">*** TERIMA KASIH ***</p>
-      <p style="margin: 2px 0 0 0;">Selamat Datang Kembali di GameZone!</p>
+      <p style="margin: 2px 0 0 0;">Selamat Datang Kembali</p>
     </div>
   </div>
 
@@ -581,12 +581,12 @@
 
     // Data 6 Unit TV PS3
     let tvUnits = [
-      { id: 1, name: "TV 01 (PS3 Slim)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.101", iotRelay: "1", fnbOrders: [] },
-      { id: 2, name: "TV 02 (PS3 Slim)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.102", iotRelay: "1", fnbOrders: [] },
-      { id: 3, name: "TV 03 (PS3 Pro)",  status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.103", iotRelay: "1", fnbOrders: [] },
-      { id: 4, name: "TV 04 (PS3 Pro)",  status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.104", iotRelay: "1", fnbOrders: [] },
-      { id: 5, name: "TV 05 (VIP Lounge)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.105", iotRelay: "1", fnbOrders: [] },
-      { id: 6, name: "TV 06 (VIP Lounge)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.106", iotRelay: "1", fnbOrders: [] }
+      { id: 1, name: "TV 01", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.101", iotRelay: "1", fnbOrders: [] },
+      { id: 2, name: "TV 02", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.102", iotRelay: "1", fnbOrders: [] },
+      { id: 3, name: "TV 03",  status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.103", iotRelay: "1", fnbOrders: [] },
+      { id: 4, name: "TV 04",  status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.104", iotRelay: "1", fnbOrders: [] },
+      { id: 5, name: "TV 05", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.105", iotRelay: "1", fnbOrders: [] },
+      { id: 6, name: "TV 06", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.106", iotRelay: "1", fnbOrders: [] }
     ];
 
     // Catalog Kantin
@@ -618,7 +618,7 @@
       
       // Timer interval setiap 1 detik untuk meng-update sisa waktu
       setInterval(updateTimersAndUI, 1000);
-      logConsole("Aplikasi Billing PS3 Controller Siap. Akses Awal: Mode Kasir/Viewer.");
+      logConsole("Aplikasi Billing PS3 Controller Siap. Akses Awal: Mode Viewer.");
     };
 
     function updateTimersAndUI() {
@@ -683,7 +683,7 @@
       if (isAdminLoggedIn) {
         // Logout Admin
         isAdminLoggedIn = false;
-        logConsole("[SECURITY] Admin logged out. Switched to Kasir / Viewer Mode.");
+        logConsole("[SECURITY] Admin logged out. Switched to Viewer Mode.");
         updateRoleUI();
       } else {
         document.getElementById('input-pin').value = '';
@@ -727,7 +727,7 @@
         adminNavs.forEach(nav => nav.classList.remove('hidden'));
       } else {
         roleBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5";
-        roleBadge.innerHTML = '<i class="fa-solid fa-user-lock"></i> Mode Kasir (Read-Only)';
+        roleBadge.innerHTML = '<i class="fa-solid fa-user-lock"></i> Mode Viewer';
         
         adminBtnIcon.className = "fa-solid fa-lock";
         adminBtnText.innerText = "Login Admin";
