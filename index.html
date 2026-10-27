@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PS3 Lounge Billing & IoT Smart Plug System</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#f0f3ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b',
+              accent: '#8b5cf6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Styling Cetak Struk Thermal Presisi (58mm / 80mm) */
+    @media print {
+      body * { visibility: hidden !important; }
+      #printable-receipt, #printable-receipt * { visibility: visible !important; }
+      #printable-receipt {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 80mm !important;
+        margin: 0 !important;
+        padding: 10px !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 11px !important;
+        line-height: 1.3 !important;
+      }
+      .no-print { display: none !important; }
+    }
+    
+    /* Scrollbar Kustom */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    /* Custom Disabled/Locked Button State for Non-Admin */
+    .btn-locked {
+      opacity: 0.45 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+      filter: grayscale(80%);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+  <!-- ================= HEADER / NAVBAR ================= -->
+  <header class="bg-slate-900/90 border-b border-slate-800 backdrop-blur sticky top-0 z-30 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Logo & Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid font-extrabold text-white text-xl">PS3</i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+            LANANG 2 BAHAGIA
+          </h1>
+          <p class="text-xs text-slate-400 flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            IoT Smart Plug Automation
+          </p>
+        </div>
+      </div>
+
+      <!-- Main Navigation Tabs -->
+      <nav class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs sm:text-sm font-medium">
+        <button id="nav-dashboard" onclick="switchTab('dashboard')" class="px-3 sm:px-4 py-1.5 rounded-lg transition-all bg-indigo-600 text-white shadow">
+          <i class="fa-solid fa-gamepad mr-1.5"></i> Dashboard TV
+        </button>
+        <button id="nav-kantin" onclick="switchTab('kantin')" class="px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all">
+          <i class="fa-solid fa-utensils mr-1.5"></i> Kantin / F&B
+        </button>
+        <button id="nav-history" onclick="switchTab('history')" class="admin-nav px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all hidden">
+          <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Laporan
+        </button>
+        <button id="nav-settings" onclick="switchTab('settings')" class="admin-nav px-3 sm:px-4 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all hidden">
+          <i class="fa-solid fa-sliders mr-1.5"></i> IoT & Tarif
+        </button>
+      </nav>
+
+      <!-- Role / Security Control Button -->
+      <div class="flex items-center gap-2">
+        <div id="role-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5">
+          <i class="fa-solid fa-user-lock"></i> Mode Viewer (Read-Only)
+        </div>
+        <button id="toggle-admin-btn" onclick="openAdminModal()" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium border border-indigo-500 transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+          <i id="admin-icon" class="fa-solid fa-lock"></i>
+          <span id="admin-btn-text">Login Admin</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner Pemberitahuan Mode Staff/Kasir (Tampil saat bukan admin) -->
+  <div id="viewer-notice" class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs text-amber-300 font-medium">
+    <i class="fa-solid fa-shield-halved mr-1"></i> Anda berada dalam <strong>Mode Viewer / Member </strong>. Anda hanya dapat melihat layar timer & kantin. Semua tombol aksi dilumpuhkan hingga Anda Login Admin.
+  </div>
+
+  <!-- ================= UTAMA / CONTAINER TAB ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- 1. DASHBOARD TAB -->
+    <section id="tab-dashboard" class="space-y-6">
+      <!-- Ringkasan Statistik Quick Status -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Total Unit TV</p>
+            <h3 id="stat-total-tv" class="text-2xl font-bold text-slate-100">6 Unit</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-tv"></i>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Aktif Main</p>
+            <h3 id="stat-active-tv" class="text-2xl font-bold text-emerald-400">0 Unit</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-play"></i>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Smart Plug Relay ON</p>
+            <h3 id="stat-iot-on" class="text-2xl font-bold text-violet-400">0 Switch</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-plug-circle-check"></i>
+          </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-400 font-medium">Omset Hari Ini</p>
+            <h3 id="stat-today-income" class="text-2xl font-bold text-amber-400">Rp 0</h3>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-sack-dollar"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid Kartu TV PS3 -->
+      <div id="tv-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Kartu TV di-render secara dinamis oleh JS -->
+      </div>
+
+      <!-- Section Console Log IoT Live -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-terminal text-indigo-400"></i> Live Console IoT Hardware & Billing Logs
+          </h3>
+          <button onclick="clearConsoleLogs()" class="admin-action px-2.5 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition border border-slate-700">
+            <i class="fa-solid fa-trash-can mr-1"></i> Bersihkan Log
+          </button>
+        </div>
+        <div id="console-log" class="bg-slate-950 font-mono text-xs text-emerald-400 p-3 rounded-xl h-32 overflow-y-auto space-y-1 border border-slate-800/80">
+          <div>[SYSTEM] Billing & Smart Plug Listener initialized successfully...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. KANTIN / F&B TAB -->
+    <section id="tab-kantin" class="hidden space-y-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white">Kantin & F&B Lounge</h2>
+          <p class="text-xs text-slate-400">Daftar makanan & minuman yang tersedia untuk rental PS3.</p>
+        </div>
+        <button onclick="openAddMenuModal()" class="admin-action px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+          <i class="fa-solid fa-plus"></i> Tambah Menu Baru
+        </button>
+      </div>
+
+      <!-- Dynamic F&B Cards Grid -->
+      <div id="fnb-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- Menu F&B di-render lewat JS -->
+      </div>
+    </section>
+
+    <!-- 3. LAPORAN & HISTORI TAB (ADMIN ONLY) -->
+    <section id="tab-history" class="hidden space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-white">Riwayat Transaksi</h2>
+          <p class="text-xs text-slate-400">Daftar pembayaran sewa PS3 dan F&B yang telah selesai.</p>
+        </div>
+        <button onclick="exportToCSV()" class="admin-action px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium transition border border-slate-700">
+          <i class="fa-solid fa-file-excel mr-1 text-emerald-400"></i> Ekspor CSV
+        </button>
+      </div>
+
+      <!-- Table Transaksi -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-950 text-slate-400 uppercase font-semibold border-b border-slate-800">
+              <tr>
+                <th class="px-4 py-3">ID / Waktu</th>
+                <th class="px-4 py-3">Unit TV</th>
+                <th class="px-4 py-3">Pelanggan</th>
+                <th class="px-4 py-3">Durasi</th>
+                <th class="px-4 py-3">Biaya Sewa</th>
+                <th class="px-4 py-3">F&B</th>
+                <th class="px-4 py-3">Diskon</th>
+                <th class="px-4 py-3">Total Tagihan</th>
+                <th class="px-4 py-3">Metode</th>
+                <th class="px-4 py-3 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-800/60">
+              <!-- Data Transaksi di-render dinamis -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PENGATURAN IOT & TARIF TAB (ADMIN ONLY) -->
+    <section id="tab-settings" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-indigo-400"></i> Pengaturan Billing & Tarif Play
+          </h2>
+          <p class="text-xs text-slate-400">Atur harga per jam dan keamanan PIN Admin.</p>
+        </div>
+
+        <form id="pricing-form" onsubmit="savePricingSettings(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Tarif Per Jam (Rp)</label>
+            <input type="number" id="setting-rate-per-hour" value="10000" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">PIN Admin Baru</label>
+            <input type="password" id="setting-admin-pin" value="1234" maxlength="6" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="admin-action w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition shadow">
+              Simpan Tarif & PIN
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Config IoT Hardware Per TV -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-microchip text-violet-400"></i> Konfigurasi IoT Smart Plug Per TV
+          </h2>
+          <p class="text-xs text-slate-400">Dukungan Tasmota (HTTP GET), Tuya Webhook REST, atau Custom Relay API.</p>
+        </div>
+
+        <div id="iot-config-list" class="space-y-4">
+          <!-- List Pengaturan IoT tiap TV -->
+        </div>
+
+        <div class="pt-2">
+          <button onclick="saveIoTConfigurations()" class="admin-action px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-xs transition shadow-lg shadow-violet-600/20">
+            <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Seluruh Konfigurasi Hardware IoT
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= MODAL DIALOGS ================= -->
+
+  <!-- Modal 1: Login Admin PIN -->
+  <div id="modal-admin-pin" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center space-y-4">
+      <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto text-2xl border border-indigo-500/20">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-white">Otentikasi Admin</h3>
+        <p class="text-xs text-slate-400 mt-1">Masukkan PIN Admin untuk membuka kontrol penuh billing.</p>
+      </div>
+      <input type="password" id="input-pin" maxlength="6" placeholder="PIN Default: 1234" class="w-full text-center text-2xl tracking-widest bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 font-mono">
+      <div id="pin-error" class="text-xs text-rose-500 hidden font-medium">PIN Salah! Silakan coba lagi.</div>
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button onclick="closeAdminModal()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">Batal</button>
+        <button onclick="verifyAdminPIN()" class="py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition shadow-lg shadow-indigo-600/20">Verifikasi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Mulai Sesi / Start Billing -->
+  <div id="modal-start-session" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-play text-emerald-400"></i> Mulai Sesi: <span id="start-modal-tv-name" class="text-indigo-400">TV 01</span>
+        </h3>
+        <button onclick="closeStartModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Nama Customer (Opsional)</label>
+          <input type="text" id="start-customer-name" placeholder="Contoh: Budi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Mode Durasi</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="mode-btn-timer" type="button" onclick="setStartMode('timer')" class="py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl border border-indigo-500">Paket Durasi (Timer)</button>
+            <button id="mode-btn-open" type="button" onclick="setStartMode('open')" class="py-2 bg-slate-950 text-slate-400 text-xs font-semibold rounded-xl border border-slate-800">Open Play (Bebas)</button>
+          </div>
+        </div>
+        <div id="timer-duration-wrapper">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Pilih / Isi Durasi (Menit)</label>
+          <div class="grid grid-cols-4 gap-2 mb-2">
+            <button type="button" onclick="setPresetDuration(30)" class="py-1.5 bg-slate-800 text-xs text-slate-200 rounded-lg hover:bg-slate-700">30 Min</button>
+            <button type="button" onclick="setPresetDuration(60)" class="py-1.5 bg-slate-800 text-xs text-slate-200 rounded-lg hover:bg-slate-700">1 Jam</button>
+            <button type="button" onclick="setPresetDuration(120)" class="py-1.5 bg-slate-800 text-xs text-slate-200 rounded-lg hover:bg-slate-700">2 Jam</button>
+            <button type="button" onclick="setPresetDuration(180)" class="py-1.5 bg-slate-800 text-xs text-slate-200 rounded-lg hover:bg-slate-700">3 Jam</button>
+          </div>
+          <input type="number" id="start-duration-minutes" value="60" min="5" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div class="bg-violet-500/10 border border-violet-500/20 p-3 rounded-xl text-xs text-violet-300 flex items-center gap-2">
+          <i class="fa-solid fa-bolt text-amber-400"></i> Smart Plug Relay akan dinyalakan secara otomatis saat tombol diklik.
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeStartModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Batal</button>
+        <button onclick="confirmStartSession()" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-emerald-600/20">Nyalakan TV & Play</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Tambah / Pesan Kantin Ke TV Active -->
+  <div id="modal-add-fnb" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-cart-plus text-amber-400"></i> Pesan F&B: <span id="fnb-modal-tv-name" class="text-indigo-400">TV 01</span>
+        </h3>
+        <button onclick="closeFnBModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="space-y-3 max-h-60 overflow-y-auto pr-1" id="fnb-select-list">
+        <!-- List item kantin di-render lewat JS -->
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeFnBModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Batal</button>
+        <button onclick="confirmAddFnBToSession()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-amber-600/20">Tambahkan ke Tagihan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Checkout & Selesai / Print Receipt -->
+  <div id="modal-checkout" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-cash-register text-indigo-400"></i> Pembayaran & Checkout <span id="checkout-tv-name" class="text-indigo-400">TV 01</span>
+        </h3>
+        <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Ringkasan Rincian Tagihan -->
+      <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
+        <div class="flex justify-between text-slate-400">
+          <span>Durasi Main:</span>
+          <span id="checkout-duration" class="text-slate-200 font-mono">1 Jam 15 Menit</span>
+        </div>
+        <div class="flex justify-between text-slate-400">
+          <span>Biaya Rental PS3:</span>
+          <span id="checkout-rental-cost" class="text-slate-200 font-mono">Rp 12.500</span>
+        </div>
+        <div class="flex justify-between text-slate-400">
+          <span>Total Pesanan F&B:</span>
+          <span id="checkout-fnb-cost" class="text-slate-200 font-mono">Rp 0</span>
+        </div>
+        <!-- List Item F&B Detail jika ada -->
+        <div id="checkout-fnb-detail" class="text-[11px] text-slate-500 pl-2 border-l border-slate-800 space-y-0.5"></div>
+
+        <div class="flex justify-between items-center text-slate-400 pt-1">
+          <span>Diskon (Rp):</span>
+          <input type="number" id="checkout-discount" oninput="calculateChange()" value="0" min="0" class="w-28 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-right text-xs text-amber-400 font-mono focus:outline-none focus:border-indigo-500">
+        </div>
+
+        <div class="border-t border-slate-800 pt-2 flex justify-between items-center text-sm font-bold">
+          <span class="text-white">TOTAL TAGIHAN:</span>
+          <span id="checkout-grand-total" class="text-amber-400 font-mono text-base">Rp 12.500</span>
+        </div>
+      </div>
+
+      <!-- Input Pembayaran -->
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Metode Bayar</label>
+            <select id="checkout-method" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="Tunai">Tunai / Cash</option>
+              <option value="QRIS">QRIS / E-Wallet</option>
+              <option value="Transfer">Transfer Bank</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 mb-1">Uang Diterima (Rp)</label>
+            <input type="number" id="checkout-pay-amount" oninput="calculateChange()" placeholder="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+          <span class="text-xs font-medium text-slate-400">Uang Kembalian:</span>
+          <span id="checkout-change-amount" class="text-sm font-bold text-emerald-400 font-mono">Rp 0</span>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button onclick="closeCheckoutModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Batal</button>
+        <button onclick="processFinalPaymentAndPrint()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-print"></i> Bayar & Cetak Struk
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Tambah Menu Kantin Baru (Admin Only) -->
+  <div id="modal-add-menu-item" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+      <h3 class="text-base font-bold text-white border-b border-slate-800 pb-2">Tambah Item F&B Baru</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Nama Makanan / Minuman</label>
+          <input type="text" id="new-item-name" placeholder="Contoh: Es Teh Manis" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Kategori</label>
+          <select id="new-item-category" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white">
+            <option value="Minuman">Minuman</option>
+            <option value="Makanan">Makanan / Snack</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Harga Jual (Rp)</label>
+          <input type="number" id="new-item-price" placeholder="5000" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white">
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeAddMenuModal()" class="flex-1 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold">Batal</button>
+        <button onclick="saveNewMenuItem()" class="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold">Simpan Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Pindah Unit TV -->
+  <div id="modal-move-tv" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+      <h3 class="text-base font-bold text-white border-b border-slate-800 pb-2">Pindah Unit TV</h3>
+      <p class="text-xs text-slate-400">Pindahkan sesi berjalan ke TV lain yang masih kosong.</p>
+      <div>
+        <label class="block text-xs font-medium text-slate-400 mb-1">Pilih TV Tujuan</label>
+        <select id="move-target-tv-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white">
+          <!-- Option diisi oleh JS -->
+        </select>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeMoveModal()" class="flex-1 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold">Batal</button>
+        <button onclick="confirmMoveTV()" class="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold">Proses Pindah</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ================= PRINT RECEIPT CONTAINER (HIDDEN ON SCREEN, VISIBLE ON PRINT) ================= -->
+  <div id="printable-receipt" class="hidden">
+    <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px;">
+      <h2 style="font-size: 14px; font-weight: bold; margin: 0;">GAMEZONE PS3 LOUNGE</h2>
+      <p style="margin: 2px 0 0 0;">Jl. Gaming Raya No. 88, Kota Rental</p>
+      <p style="margin: 2px 0 0 0;">Telp: 0812-3456-7890</p>
+    </div>
+
+    <div style="margin-bottom: 8px; line-height: 1.4;">
+      <div style="display: flex; justify-content: space-between;">
+        <span>No. Struk:</span>
+        <span id="rcp-id">#TRX-0000</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Waktu:</span>
+        <span id="rcp-date">28/10/2026 00:00</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Unit TV:</span>
+        <span id="rcp-unit">TV 01</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Pelanggan:</span>
+        <span id="rcp-customer">Umum</span>
+      </div>
+    </div>
+
+    <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 6px 0; margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 4px;">
+        <span>Item / Durasi</span>
+        <span>Subtotal</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Sewa PS3 (<span id="rcp-duration">0m</span>)</span>
+        <span id="rcp-rental-cost">Rp 0</span>
+      </div>
+      <div id="rcp-fnb-items-container">
+        <!-- Item FNB tercetak di sini -->
+      </div>
+    </div>
+
+    <div style="line-height: 1.5; margin-bottom: 10px;">
+      <div id="rcp-discount-row" style="display: flex; justify-content: space-between; display: none;">
+        <span>Diskon:</span>
+        <span id="rcp-discount">-Rp 0</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; border-top: 1px dotted #ccc; padding-top: 2px; margin-top: 2px;">
+        <span>TOTAL TAGIHAN:</span>
+        <span id="rcp-total">Rp 0</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Metode:</span>
+        <span id="rcp-method">Tunai</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Bayar:</span>
+        <span id="rcp-pay">Rp 0</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Kembalian:</span>
+        <span id="rcp-change">Rp 0</span>
+      </div>
+    </div>
+
+    <div style="text-align: center; border-top: 1px dashed #000; padding-top: 8px; margin-top: 8px; font-size: 10px;">
+      <p style="margin: 0; font-weight: bold;">*** TERIMA KASIH ***</p>
+      <p style="margin: 2px 0 0 0;">Selamat Datang Kembali di GameZone!</p>
+    </div>
+  </div>
+
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    /* -------------------------------------------------------------------------
+       1. APP STATE MANAGEMENT & INITIAL DATA
+       ------------------------------------------------------------------------- */
+    let isAdminLoggedIn = false; // Default: Kasir / Viewer Mode
+    let adminPIN = "1234";
+    let hourlyRate = 10000; // Rp 10.000 / jam
+
+    // Data 6 Unit TV PS3
+    let tvUnits = [
+      { id: 1, name: "TV 01 (PS3 Slim)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.101", iotRelay: "1", fnbOrders: [] },
+      { id: 2, name: "TV 02 (PS3 Slim)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.102", iotRelay: "1", fnbOrders: [] },
+      { id: 3, name: "TV 03 (PS3 Pro)",  status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.103", iotRelay: "1", fnbOrders: [] },
+      { id: 4, name: "TV 04 (PS3 Pro)",  status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.104", iotRelay: "1", fnbOrders: [] },
+      { id: 5, name: "TV 05 (VIP Lounge)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.105", iotRelay: "1", fnbOrders: [] },
+      { id: 6, name: "TV 06 (VIP Lounge)", status: "OFF", customer: "", startTime: null, durationMinutes: 0, isOpenPlay: false, iotIp: "192.168.1.106", iotRelay: "1", fnbOrders: [] }
+    ];
+
+    // Catalog Kantin
+    let fnbCatalog = [
+      { id: 1, name: "Es Teh Manis", price: 4000, category: "Minuman", icon: "fa-glass-water" },
+      { id: 2, name: "Kopi Hitam / Tubruk", price: 5000, category: "Minuman", icon: "fa-mug-hot" },
+      { id: 3, name: "Mie Goreng + Telur", price: 12000, category: "Makanan", icon: "fa-bowl-food" },
+      { id: 4, name: "Kentang Goreng", price: 10000, category: "Makanan", icon: "fa-box" },
+      { id: 5, name: "Air Mineral 600ml", price: 3500, category: "Minuman", icon: "fa-bottle-water" }
+    ];
+
+    // Histori Transaksi Selesai
+    let transactionHistory = [];
+
+    // Temporary variables for modal interactions
+    let activeModalTvId = null;
+    let selectedStartMode = 'timer'; // 'timer' or 'open'
+    let currentCheckoutData = null;
+
+    /* -------------------------------------------------------------------------
+       2. LIFECYCLE & TICKER TIMER
+       ------------------------------------------------------------------------- */
+    window.onload = function() {
+      renderTvGrid();
+      renderFnBCatalog();
+      renderHistoryTable();
+      renderIoTConfigList();
+      updateRoleUI();
+      
+      // Timer interval setiap 1 detik untuk meng-update sisa waktu
+      setInterval(updateTimersAndUI, 1000);
+      logConsole("Aplikasi Billing PS3 Controller Siap. Akses Awal: Mode Kasir/Viewer.");
+    };
+
+    function updateTimersAndUI() {
+      let activeCount = 0;
+      let iotOnCount = 0;
+      const now = new Date().getTime();
+
+      tvUnits.forEach(tv => {
+        if (tv.status === "PLAYING") {
+          activeCount++;
+          iotOnCount++;
+
+          const elapsedMs = now - tv.startTime;
+          const elapsedSec = Math.floor(elapsedMs / 1000);
+
+          if (!tv.isOpenPlay) {
+            const totalSec = tv.durationMinutes * 60;
+            const remainingSec = totalSec - elapsedSec;
+
+            if (remainingSec <= 0) {
+              // Timer Waktu Habis -> Stop Otomatis & Trigger IoT Relay OFF
+              tv.status = "TIME_EXPIRED";
+              triggerIoTPlug(tv, "OFF");
+              logConsole(`[ALERT] Waktu ${tv.name} HABIS! Listrik TV dipadamkan otomatis.`);
+            }
+          }
+        }
+      });
+
+      // Update elemen statistik dashboard
+      document.getElementById('stat-active-tv').innerText = `${activeCount} Unit`;
+      document.getElementById('stat-iot-on').innerText = `${iotOnCount} Switch`;
+
+      // Re-render display timer pada kartu TV yang aktif saja
+      tvUnits.forEach(tv => {
+        const timerElem = document.getElementById(`timer-display-${tv.id}`);
+        const costElem = document.getElementById(`cost-display-${tv.id}`);
+        
+        if (timerElem && tv.status !== "OFF") {
+          const elapsedSec = Math.floor((now - tv.startTime) / 1000);
+          
+          if (tv.isOpenPlay) {
+            timerElem.innerText = formatDurationText(elapsedSec);
+          } else {
+            const totalSec = tv.durationMinutes * 60;
+            const remainingSec = Math.max(0, totalSec - elapsedSec);
+            timerElem.innerText = formatDurationText(remainingSec);
+          }
+
+          if (costElem) {
+            const currentRentalCost = calculateRentalCost(tv);
+            costElem.innerText = formatRupiah(currentRentalCost);
+          }
+        }
+      });
+    }
+
+    /* -------------------------------------------------------------------------
+       3. ROLE-BASED ACCESS CONTROL (ADMIN VS KASIR / VIEWER)
+       ------------------------------------------------------------------------- */
+    function openAdminModal() {
+      if (isAdminLoggedIn) {
+        // Logout Admin
+        isAdminLoggedIn = false;
+        logConsole("[SECURITY] Admin logged out. Switched to Kasir / Viewer Mode.");
+        updateRoleUI();
+      } else {
+        document.getElementById('input-pin').value = '';
+        document.getElementById('pin-error').classList.add('hidden');
+        document.getElementById('modal-admin-pin').classList.remove('hidden');
+      }
+    }
+
+    function closeAdminModal() {
+      document.getElementById('modal-admin-pin').classList.add('hidden');
+    }
+
+    function verifyAdminPIN() {
+      const pinInput = document.getElementById('input-pin').value;
+      if (pinInput === adminPIN) {
+        isAdminLoggedIn = true;
+        closeAdminModal();
+        logConsole("[SECURITY] Admin PIN verified. Full access GRANTED.");
+        updateRoleUI();
+      } else {
+        document.getElementById('pin-error').classList.remove('hidden');
+      }
+    }
+
+    function updateRoleUI() {
+      const roleBadge = document.getElementById('role-badge');
+      const adminBtnIcon = document.getElementById('admin-icon');
+      const adminBtnText = document.getElementById('admin-btn-text');
+      const noticeBanner = document.getElementById('viewer-notice');
+      const adminNavs = document.querySelectorAll('.admin-nav');
+
+      if (isAdminLoggedIn) {
+        roleBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5";
+        roleBadge.innerHTML = '<i class="fa-solid fa-user-shield"></i> Mode Administrator Active';
+        
+        adminBtnIcon.className = "fa-solid fa-lock-open";
+        adminBtnText.innerText = "Logout Admin";
+        noticeBanner.classList.add('hidden');
+
+        // Tampilkan Tab Khusus Admin
+        adminNavs.forEach(nav => nav.classList.remove('hidden'));
+      } else {
+        roleBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1.5";
+        roleBadge.innerHTML = '<i class="fa-solid fa-user-lock"></i> Mode Kasir (Read-Only)';
+        
+        adminBtnIcon.className = "fa-solid fa-lock";
+        adminBtnText.innerText = "Login Admin";
+        noticeBanner.classList.remove('hidden');
+
+        // Sembunyikan Tab Khusus Admin jika sedang diakses
+        adminNavs.forEach(nav => nav.classList.add('hidden'));
+        
+        // Redirect jika non-admin sedang berada di tab terlarang
+        const activeTabHistory = !document.getElementById('tab-history').classList.contains('hidden');
+        const activeTabSettings = !document.getElementById('tab-settings').classList.contains('hidden');
+        if (activeTabHistory || activeTabSettings) {
+          switchTab('dashboard');
+        }
+      }
+
+      // Kunci atau Buka semua elemen bertanda .admin-action
+      const adminButtons = document.querySelectorAll('.admin-action');
+      adminButtons.forEach(btn => {
+        if (isAdminLoggedIn) {
+          btn.classList.remove('btn-locked');
+          btn.removeAttribute('disabled');
+        } else {
+          btn.classList.add('btn-locked');
+          btn.setAttribute('disabled', 'true');
+        }
+      });
+    }
+
+    /* -------------------------------------------------------------------------
+       4. DASHBOARD & RENDER TV CARDS
+       ------------------------------------------------------------------------- */
+    function renderTvGrid() {
+      const container = document.getElementById('tv-grid');
+      container.innerHTML = '';
+
+      tvUnits.forEach(tv => {
+        let statusBadge = '';
+        let cardBg = 'bg-slate-900 border-slate-800';
+        
+        if (tv.status === 'OFF') {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">STANDBY / OFF</span>';
+        } else if (tv.status === 'PLAYING') {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> PLAYING</span>';
+          cardBg = 'bg-slate-900 border-indigo-500/40 shadow-lg shadow-indigo-500/5';
+        } else if (tv.status === 'TIME_EXPIRED') {
+          statusBadge = '<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse">WAKTU HABIS</span>';
+          cardBg = 'bg-slate-900 border-rose-500/50 shadow-lg shadow-rose-500/10';
+        }
+
+        const totalFnBCost = calculateFnBCost(tv.fnbOrders);
+        const currentRentalCost = calculateRentalCost(tv);
+
+        const cardHTML = `
+          <div class="border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 relative ${cardBg}">
+            <!-- Header Kartu -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-tv text-indigo-400 text-lg"></i>
+                  <h3 class="font-bold text-base text-white">${tv.name}</h3>
+                </div>
+                ${statusBadge}
+              </div>
+
+              <!-- Pelanggan Info -->
+              <p class="text-xs text-slate-400 mb-4">
+                Pelanggan: <strong class="text-slate-200">${tv.customer || 'Belum diisi'}</strong>
+              </p>
+
+              <!-- Display Timer Digital -->
+              <div class="bg-slate-950 border border-slate-800/80 rounded-2xl p-4 text-center mb-4">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                  ${tv.status === 'PLAYING' ? (tv.isOpenPlay ? 'DURASI BERJALAN' : 'SISA WAKTU') : 'TIMER STATUS'}
+                </p>
+                <div id="timer-display-${tv.id}" class="text-3xl font-extrabold font-mono tracking-tight text-indigo-400">
+                  ${tv.status === 'OFF' ? '00:00:00' : '00:00:00'}
+                </div>
+                <div class="flex items-center justify-between text-xs font-mono border-t border-slate-800/80 pt-2 mt-3">
+                  <span class="text-slate-400">Estimasi Sewa:</span>
+                  <span id="cost-display-${tv.id}" class="text-emerald-400 font-bold">${formatRupiah(currentRentalCost)}</span>
+                </div>
+              </div>
+
+              <!-- Summary F&B Pilihan -->
+              <div class="text-xs text-slate-400 mb-4 bg-slate-950/40 p-2.5 rounded-xl border border-slate-800/40">
+                <div class="flex justify-between font-medium mb-1">
+                  <span>Pesanan Kantin:</span>
+                  <span class="text-amber-400 font-semibold">${formatRupiah(totalFnBCost)}</span>
+                </div>
+                <div class="text-[11px] text-slate-500 truncate">
+                  ${tv.fnbOrders.length > 0 ? tv.fnbOrders.map(o => `${o.name} (${o.qty})`).join(', ') : 'Belum ada pesanan F&B'}
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons Footer -->
+            <div class="space-y-2 border-t border-slate-800/80 pt-3">
+              ${tv.status === 'OFF' ? `
+                <button onclick="openStartModal(${tv.id})" class="admin-action w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-play"></i> Mulai Sesi (Relay ON)
+                </button>
+              ` : `
+                <div class="grid grid-cols-2 gap-2">
+                  <button onclick="openFnBModal(${tv.id})" class="admin-action py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-utensils"></i> + F&B
+                  </button>
+                  <button onclick="openMoveModal(${tv.id})" class="admin-action py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i> Pindah
+                  </button>
+                </div>
+                <button onclick="openCheckoutModal(${tv.id})" class="admin-action w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-rose-600/20 flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-square-check"></i> Selesai / Bayar & Cetak
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', cardHTML);
+      });
+
+      updateRoleUI();
+    }
+
+    /* -------------------------------------------------------------------------
+       5. LOGIKA MULAI SESI & MODAL CONTROL
+       ------------------------------------------------------------------------- */
+    function openStartModal(tvId) {
+      if (!isAdminLoggedIn) return;
+      activeModalTvId = tvId;
+      const tv = tvUnits.find(t => t.id === tvId);
+      document.getElementById('start-modal-tv-name').innerText = tv.name;
+      document.getElementById('start-customer-name').value = '';
+      setStartMode('timer');
+      document.getElementById('modal-start-session').classList.remove('hidden');
+    }
+
+    function closeStartModal() {
+      document.getElementById('modal-start-session').classList.add('hidden');
+    }
+
+    function setStartMode(mode) {
+      selectedStartMode = mode;
+      const btnTimer = document.getElementById('mode-btn-timer');
+      const btnOpen = document.getElementById('mode-btn-open');
+      const wrapper = document.getElementById('timer-duration-wrapper');
+
+      if (mode === 'timer') {
+        btnTimer.className = "py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl border border-indigo-500";
+        btnOpen.className = "py-2 bg-slate-950 text-slate-400 text-xs font-semibold rounded-xl border border-slate-800";
+        wrapper.classList.remove('hidden');
+      } else {
+        btnOpen.className = "py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl border border-indigo-500";
+        btnTimer.className = "py-2 bg-slate-950 text-slate-400 text-xs font-semibold rounded-xl border border-slate-800";
+        wrapper.classList.add('hidden');
+      }
+    }
+
+    function setPresetDuration(mins) {
+      document.getElementById('start-duration-minutes').value = mins;
+    }
+
+    function confirmStartSession() {
+      if (!isAdminLoggedIn) return;
+      const tv = tvUnits.find(t => t.id === activeModalTvId);
+      if (!tv) return;
+
+      const customer = document.getElementById('start-customer-name').value.trim();
+      tv.customer = customer || "Umum";
+      tv.startTime = new Date().getTime();
+      tv.isOpenPlay = (selectedStartMode === 'open');
+      tv.durationMinutes = tv.isOpenPlay ? 0 : parseInt(document.getElementById('start-duration-minutes').value || 60);
+      tv.status = "PLAYING";
+      tv.fnbOrders = [];
+
+      // Otomatisasi IoT Switch Relay ON
+      triggerIoTPlug(tv, "ON");
+
+      closeStartModal();
+      renderTvGrid();
+      logConsole(`[SESSION] ${tv.name} DIBUKA (${tv.isOpenPlay ? 'Open Play' : tv.durationMinutes + ' Menit'}).`);
+    }
+
+    /* -------------------------------------------------------------------------
+       6. CHECKOUT & INTEGRASI CETAK STRUK
+       ------------------------------------------------------------------------- */
+    function openCheckoutModal(tvId) {
+      if (!isAdminLoggedIn) return;
+      activeModalTvId = tvId;
+      const tv = tvUnits.find(t => t.id === tvId);
+      if (!tv) return;
+
+      document.getElementById('checkout-tv-name').innerText = tv.name;
+
+      const elapsedMs = new Date().getTime() - tv.startTime;
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      const rentalCost = calculateRentalCost(tv);
+      const fnbCost = calculateFnBCost(tv.fnbOrders);
+
+      document.getElementById('checkout-discount').value = 0;
+      const grandTotal = rentalCost + fnbCost;
+      const durationStr = formatDurationText(elapsedSec);
+
+      document.getElementById('checkout-duration').innerText = durationStr;
+      document.getElementById('checkout-rental-cost').innerText = formatRupiah(rentalCost);
+      document.getElementById('checkout-fnb-cost').innerText = formatRupiah(fnbCost);
+      document.getElementById('checkout-grand-total').innerText = formatRupiah(grandTotal);
+
+      // Render rincian F&B di checkout modal
+      const fnbDetailContainer = document.getElementById('checkout-fnb-detail');
+      if (tv.fnbOrders.length > 0) {
+        fnbDetailContainer.innerHTML = tv.fnbOrders.map(o => `<div>• ${o.name} x${o.qty} = ${formatRupiah(o.price * o.qty)}</div>`).join('');
+      } else {
+        fnbDetailContainer.innerHTML = '<div>• Tidak ada pesanan makanan</div>';
+      }
+
+      // Default input bayar dengan uang pas
+      document.getElementById('checkout-pay-amount').value = grandTotal;
+
+      // Simpan temporary state checkout
+      currentCheckoutData = {
+        tvId: tv.id,
+        unitName: tv.name,
+        customer: tv.customer,
+        durationStr: durationStr,
+        rentalCost: rentalCost,
+        fnbCost: fnbCost,
+        fnbOrders: [...tv.fnbOrders],
+        discount: 0,
+        grandTotal: grandTotal
+      };
+
+      calculateChange();
+      document.getElementById('modal-checkout').classList.remove('hidden');
+    }
+
+    function calculateChange() {
+      if (!currentCheckoutData) return;
+      const discount = Math.max(0, parseFloat(document.getElementById('checkout-discount').value) || 0);
+      const subtotal = currentCheckoutData.rentalCost + currentCheckoutData.fnbCost;
+      const grandTotal = Math.max(0, subtotal - discount);
+
+      currentCheckoutData.discount = discount;
+      currentCheckoutData.grandTotal = grandTotal;
+
+      document.getElementById('checkout-grand-total').innerText = formatRupiah(grandTotal);
+
+      const payInput = parseFloat(document.getElementById('checkout-pay-amount').value) || 0;
+      const change = payInput - grandTotal;
+      const changeElem = document.getElementById('checkout-change-amount');
+      
+      if (change < 0) {
+        changeElem.innerText = "Kurang " + formatRupiah(Math.abs(change));
+        changeElem.className = "text-sm font-bold text-rose-400 font-mono";
+      } else {
+        changeElem.innerText = formatRupiah(change);
+        changeElem.className = "text-sm font-bold text-emerald-400 font-mono";
+      }
+    }
+
+    function closeCheckoutModal() {
+      document.getElementById('modal-checkout').classList.add('hidden');
+    }
+
+    function processFinalPaymentAndPrint() {
+      if (!isAdminLoggedIn || !currentCheckoutData) return;
+      
+      const tv = tvUnits.find(t => t.id === currentCheckoutData.tvId);
+      const payAmount = parseFloat(document.getElementById('checkout-pay-amount').value) || 0;
+      const method = document.getElementById('checkout-method').value;
+
+      if (payAmount < currentCheckoutData.grandTotal) {
+        alert("Nominal pembayaran kurang!");
+        return;
+      }
+
+      const changeAmount = payAmount - currentCheckoutData.grandTotal;
+      const nowStr = new Date().toLocaleString('id-ID');
+      const trxId = "TRX-" + Math.floor(100000 + Math.random() * 900000);
+
+      const completedTransaction = {
+        id: trxId,
+        date: nowStr,
+        unitName: currentCheckoutData.unitName,
+        customer: currentCheckoutData.customer,
+        durationStr: currentCheckoutData.durationStr,
+        rentalCost: currentCheckoutData.rentalCost,
+        fnbCost: currentCheckoutData.fnbCost,
+        fnbOrders: currentCheckoutData.fnbOrders,
+        discount: currentCheckoutData.discount,
+        grandTotal: currentCheckoutData.grandTotal,
+        method: method,
+        payAmount: payAmount,
+        changeAmount: changeAmount
+      };
+
+      // Simpan ke riwayat transaksi
+      transactionHistory.unshift(completedTransaction);
+
+      // Matikan TV & Relay IoT
+      tv.status = "OFF";
+      tv.customer = "";
+      tv.fnbOrders = [];
+      tv.startTime = null;
+      triggerIoTPlug(tv, "OFF");
+
+      logConsole(`[PAYMENT] ${completedTransaction.unitName} Selesai. Total: ${formatRupiah(completedTransaction.grandTotal)} (${method})`);
+
+      closeCheckoutModal();
+      renderTvGrid();
+      renderHistoryTable();
+      updateOmsetStat();
+
+      // Isi Data Ke Template Printable Receipt & Panggil Window Print
+      populateAndTriggerPrint(completedTransaction);
+    }
+
+    function populateAndTriggerPrint(trx) {
+      document.getElementById('rcp-id').innerText = trx.id;
+      document.getElementById('rcp-date').innerText = trx.date;
+      document.getElementById('rcp-unit').innerText = trx.unitName;
+      document.getElementById('rcp-customer').innerText = trx.customer || 'Umum';
+      document.getElementById('rcp-duration').innerText = trx.durationStr;
+      document.getElementById('rcp-rental-cost').innerText = formatRupiah(trx.rentalCost);
+      document.getElementById('rcp-total').innerText = formatRupiah(trx.grandTotal);
+      document.getElementById('rcp-method').innerText = trx.method;
+      document.getElementById('rcp-pay').innerText = formatRupiah(trx.payAmount);
+      document.getElementById('rcp-change').innerText = formatRupiah(trx.changeAmount);
+
+      const discountRow = document.getElementById('rcp-discount-row');
+      if (trx.discount && trx.discount > 0) {
+        discountRow.style.display = 'flex';
+        document.getElementById('rcp-discount').innerText = '-' + formatRupiah(trx.discount);
+      } else {
+        discountRow.style.display = 'none';
+      }
+
+      const fnbContainer = document.getElementById('rcp-fnb-items-container');
+      fnbContainer.innerHTML = '';
+      if (trx.fnbOrders && trx.fnbOrders.length > 0) {
+        trx.fnbOrders.forEach(item => {
+          fnbContainer.insertAdjacentHTML('beforeend', `
+            <div style="display: flex; justify-content: space-between; margin-top: 2px;">
+              <span>${item.name} (x${item.qty})</span>
+              <span>${formatRupiah(item.price * item.qty)}</span>
+            </div>
+          `);
+        });
+      }
+
+      // Panggil Dialog Print Browser
+      setTimeout(() => {
+        window.print();
+      }, 300);
+    }
+
+    /* -------------------------------------------------------------------------
+       7. KANTIN / F&B SYSTEM
+       ------------------------------------------------------------------------- */
+    function renderFnBCatalog() {
+      const container = document.getElementById('fnb-grid');
+      container.innerHTML = '';
+
+      fnbCatalog.forEach(item => {
+        const cardHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-700 transition">
+            <div>
+              <div class="w-10 h-10 rounded-xl bg-slate-800 text-indigo-400 flex items-center justify-center text-lg mb-3">
+                <i class="fa-solid ${item.icon || 'fa-utensils'}"></i>
+              </div>
+              <h4 class="font-bold text-sm text-white">${item.name}</h4>
+              <p class="text-[11px] text-slate-500">${item.category}</p>
+            </div>
+            <div class="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3">
+              <span class="text-sm font-bold text-amber-400 font-mono">${formatRupiah(item.price)}</span>
+              <button onclick="deleteMenuItem(${item.id})" class="admin-action p-1.5 text-slate-500 hover:text-rose-400 transition">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', cardHTML);
+      });
+
+      updateRoleUI();
+    }
+
+    function openFnBModal(tvId) {
+      if (!isAdminLoggedIn) return;
+      activeModalTvId = tvId;
+      const tv = tvUnits.find(t => t.id === tvId);
+      document.getElementById('fnb-modal-tv-name').innerText = tv.name;
+
+      const listContainer = document.getElementById('fnb-select-list');
+      listContainer.innerHTML = '';
+
+      fnbCatalog.forEach(item => {
+        const existing = tv.fnbOrders.find(o => o.id === item.id);
+        const qty = existing ? existing.qty : 0;
+
+        const rowHTML = `
+          <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div>
+              <div class="font-semibold text-xs text-white">${item.name}</div>
+              <div class="text-[11px] text-amber-400 font-mono">${formatRupiah(item.price)}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="changeFnBQty(${item.id}, -1)" class="w-7 h-7 bg-slate-800 text-slate-200 rounded-lg hover:bg-slate-700 flex items-center justify-center font-bold text-xs">-</button>
+              <span id="fnb-qty-val-${item.id}" class="w-6 text-center text-xs font-bold text-white font-mono">${qty}</span>
+              <button onclick="changeFnBQty(${item.id}, 1)" class="w-7 h-7 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 flex items-center justify-center font-bold text-xs">+</button>
+            </div>
+          </div>
+        `;
+        listContainer.insertAdjacentHTML('beforeend', rowHTML);
+      });
+
+      document.getElementById('modal-add-fnb').classList.remove('hidden');
+    }
+
+    function changeFnBQty(itemId, delta) {
+      const valElem = document.getElementById(`fnb-qty-val-${itemId}`);
+      let currentVal = parseInt(valElem.innerText) || 0;
+      currentVal = Math.max(0, currentVal + delta);
+      valElem.innerText = currentVal;
+    }
+
+    function confirmAddFnBToSession() {
+      if (!isAdminLoggedIn) return;
+      const tv = tvUnits.find(t => t.id === activeModalTvId);
+      if (!tv) return;
+
+      tv.fnbOrders = []; // rebuild orders
+      fnbCatalog.forEach(item => {
+        const valElem = document.getElementById(`fnb-qty-val-${item.id}`);
+        if (valElem) {
+          const qty = parseInt(valElem.innerText) || 0;
+          if (qty > 0) {
+            tv.fnbOrders.push({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              qty: qty
+            });
+          }
+        }
+      });
+
+      closeFnBModal();
+      renderTvGrid();
+      logConsole(`[F&B] Updated order untuk ${tv.name}. Total item: ${tv.fnbOrders.length}`);
+    }
+
+    function closeFnBModal() {
+      document.getElementById('modal-add-fnb').classList.add('hidden');
+    }
+
+    function openAddMenuModal() {
+      if (!isAdminLoggedIn) return;
+      document.getElementById('modal-add-menu-item').classList.remove('hidden');
+    }
+    function closeAddMenuModal() {
+      document.getElementById('modal-add-menu-item').classList.add('hidden');
+    }
+    function saveNewMenuItem() {
+      if (!isAdminLoggedIn) return;
+      const name = document.getElementById('new-item-name').value.trim();
+      const cat = document.getElementById('new-item-category').value;
+      const price = parseFloat(document.getElementById('new-item-price').value) || 0;
+
+      if (!name || price <= 0) {
+        alert("Mohon isi nama dan harga menu dengan benar!");
+        return;
+      }
+
+      const newItem = {
+        id: Date.now(),
+        name: name,
+        price: price,
+        category: cat,
+        icon: cat === "Minuman" ? "fa-glass-water" : "fa-utensils"
+      };
+
+      fnbCatalog.push(newItem);
+      closeAddMenuModal();
+      renderFnBCatalog();
+      logConsole(`[KANTIN] Menu baru ditambahkan: ${name} (${formatRupiah(price)})`);
+    }
+
+    function deleteMenuItem(id) {
+      if (!isAdminLoggedIn) return;
+      fnbCatalog = fnbCatalog.filter(i => i.id !== id);
+      renderFnBCatalog();
+      logConsole(`[KANTIN] Item F&B dihapus.`);
+    }
+
+    /* -------------------------------------------------------------------------
+       8. PINDAH UNIT TV
+       ------------------------------------------------------------------------- */
+    function openMoveModal(tvId) {
+      if (!isAdminLoggedIn) return;
+      activeModalTvId = tvId;
+      
+      const select = document.getElementById('move-target-tv-select');
+      select.innerHTML = '';
+
+      const availableTargets = tvUnits.filter(t => t.id !== tvId && t.status === 'OFF');
+
+      if (availableTargets.length === 0) {
+        alert("Tidak ada TV yang kosong / standby saat ini!");
+        return;
+      }
+
+      availableTargets.forEach(target => {
+        select.insertAdjacentHTML('beforeend', `<option value="${target.id}">${target.name}</option>`);
+      });
+
+      document.getElementById('modal-move-tv').classList.remove('hidden');
+    }
+
+    function closeMoveModal() {
+      document.getElementById('modal-move-tv').classList.add('hidden');
+    }
+
+    function confirmMoveTV() {
+      if (!isAdminLoggedIn) return;
+      const sourceTv = tvUnits.find(t => t.id === activeModalTvId);
+      const targetTvId = parseInt(document.getElementById('move-target-tv-select').value);
+      const targetTv = tvUnits.find(t => t.id === targetTvId);
+
+      if (!sourceTv || !targetTv) return;
+
+      // Matikan Relay TV asal
+      triggerIoTPlug(sourceTv, "OFF");
+
+      // Transfer data ke TV tujuan
+      targetTv.customer = sourceTv.customer;
+      targetTv.startTime = sourceTv.startTime;
+      targetTv.durationMinutes = sourceTv.durationMinutes;
+      targetTv.isOpenPlay = sourceTv.isOpenPlay;
+      targetTv.fnbOrders = [...sourceTv.fnbOrders];
+      targetTv.status = "PLAYING";
+
+      // Reset TV asal
+      sourceTv.status = "OFF";
+      sourceTv.customer = "";
+      sourceTv.fnbOrders = [];
+      sourceTv.startTime = null;
+
+      // Nyalakan Relay TV tujuan
+      triggerIoTPlug(targetTv, "ON");
+
+      closeMoveModal();
+      renderTvGrid();
+      logConsole(`[MOVE] Sesi dipindahkan dari ${sourceTv.name} ke ${targetTv.name}`);
+    }
+
+    /* -------------------------------------------------------------------------
+       9. LAPORAN & HISTORI TRANSAKSI
+       ------------------------------------------------------------------------- */
+    function renderHistoryTable() {
+      const tbody = document.getElementById('history-table-body');
+      tbody.innerHTML = '';
+
+      if (transactionHistory.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-slate-500">Belum ada data transaksi.</td></tr>`;
+        return;
+      }
+
+      transactionHistory.forEach((trx, idx) => {
+        const row = `
+          <tr class="hover:bg-slate-900/50 transition">
+            <td class="px-4 py-3 font-mono text-slate-400">
+              <div class="font-bold text-white">${trx.id}</div>
+              <div class="text-[10px]">${trx.date}</div>
+            </td>
+            <td class="px-4 py-3 font-medium text-slate-200">${trx.unitName}</td>
+            <td class="px-4 py-3 text-slate-300">${trx.customer || 'Umum'}</td>
+            <td class="px-4 py-3 font-mono">${trx.durationStr}</td>
+            <td class="px-4 py-3 font-mono">${formatRupiah(trx.rentalCost)}</td>
+            <td class="px-4 py-3 font-mono">${formatRupiah(trx.fnbCost)}</td>
+            <td class="px-4 py-3 font-mono text-rose-400">${trx.discount ? '-' + formatRupiah(trx.discount) : 'Rp 0'}</td>
+            <td class="px-4 py-3 font-mono font-bold text-amber-400">${formatRupiah(trx.grandTotal)}</td>
+            <td class="px-4 py-3"><span class="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 font-semibold">${trx.method}</span></td>
+            <td class="px-4 py-3 text-right">
+              <button onclick="reprintHistoryReceipt(${idx})" class="px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded-lg text-xs font-medium transition border border-indigo-500/30 flex items-center gap-1 ml-auto">
+                <i class="fa-solid fa-print"></i> Cetak Ulang
+              </button>
+            </td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+      });
+    }
+
+    function reprintHistoryReceipt(index) {
+      const trx = transactionHistory[index];
+      if (trx) {
+        populateAndTriggerPrint(trx);
+      }
+    }
+
+    function updateOmsetStat() {
+      const totalIncome = transactionHistory.reduce((sum, t) => sum + t.grandTotal, 0);
+      document.getElementById('stat-today-income').innerText = formatRupiah(totalIncome);
+    }
+
+    function exportToCSV() {
+      if (transactionHistory.length === 0) {
+        alert("Tidak ada data transaksi untuk diekspor.");
+        return;
+      }
+      let csv = "ID Transaksi,Tanggal,Unit,Pelanggan,Durasi,Sewa,FnB,Diskon,Total,Metode\n";
+      transactionHistory.forEach(t => {
+        csv += `${t.id},${t.date},${t.unitName},${t.customer || 'Umum'},${t.durationStr},${t.rentalCost},${t.fnbCost},${t.discount || 0},${t.grandTotal},${t.method}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('href', url);
+      a.setAttribute('download', `Laporan_Billing_PS3_${Date.now()}.csv`);
+      a.click();
+    }
+
+    /* -------------------------------------------------------------------------
+       10. PENGATURAN IOT & HARGA TARIF
+       ------------------------------------------------------------------------- */
+    function savePricingSettings(e) {
+      e.preventDefault();
+      if (!isAdminLoggedIn) return;
+      hourlyRate = parseFloat(document.getElementById('setting-rate-per-hour').value) || 10000;
+      adminPIN = document.getElementById('setting-admin-pin').value || "1234";
+      alert("Tarif dan PIN Admin berhasil diperbarui!");
+      logConsole(`[CONFIG] Tarif per jam diubah ke ${formatRupiah(hourlyRate)}.`);
+    }
+
+    function renderIoTConfigList() {
+      const container = document.getElementById('iot-config-list');
+      container.innerHTML = '';
+
+      tvUnits.forEach(tv => {
+        const itemHTML = `
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+            <div class="font-bold text-xs text-indigo-300">${tv.name}</div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">IP Address Smart Plug</label>
+              <input type="text" id="iot-ip-${tv.id}" value="${tv.iotIp}" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">Relay Index / Command</label>
+              <input type="text" id="iot-relay-${tv.id}" value="${tv.iotRelay}" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+            </div>
+            <div class="flex items-center gap-2 pt-3 sm:pt-0">
+              <button onclick="testIoTManual(${tv.id}, 'ON')" class="admin-action flex-1 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white rounded-lg text-xs font-semibold border border-emerald-500/30 transition">Test ON</button>
+              <button onclick="testIoTManual(${tv.id}, 'OFF')" class="admin-action flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg text-xs font-semibold border border-rose-500/30 transition">Test OFF</button>
+            </div>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', itemHTML);
+      });
+
+      updateRoleUI();
+    }
+
+    function saveIoTConfigurations() {
+      if (!isAdminLoggedIn) return;
+      tvUnits.forEach(tv => {
+        const ipVal = document.getElementById(`iot-ip-${tv.id}`).value;
+        const relayVal = document.getElementById(`iot-relay-${tv.id}`).value;
+        tv.iotIp = ipVal;
+        tv.iotRelay = relayVal;
+      });
+      alert("Konfigurasi IoT Hardware berhasil disimpan!");
+      logConsole("[IoT] IP & Relay Smart Plug updated for all TVs.");
+    }
+
+    function triggerIoTPlug(tv, state) {
+      // Perintah Tasmota/Tuya REST API Call (http://<ip>/cm?cmnd=Power<relay>%20<ON/OFF>)
+      const endpoint = `http://${tv.iotIp}/cm?cmnd=Power${tv.iotRelay}%20${state}`;
+      
+      logConsole(`[IoT REST] Sending command to ${tv.name} (${tv.iotIp}): POWER ${state}`);
+      
+      fetch(endpoint, { mode: 'no-cors' })
+        .then(() => logConsole(`[IoT SUCCESS] Relay ${tv.name} set to ${state}`))
+        .catch(err => logConsole(`[IoT HARDWARE API] ${tv.name} API HTTP Trigger (${state}) executed.`));
+    }
+
+    function testIoTManual(tvId, state) {
+      if (!isAdminLoggedIn) return;
+      const tv = tvUnits.find(t => t.id === tvId);
+      if (tv) {
+        triggerIoTPlug(tv, state);
+      }
+    }
+
+    /* -------------------------------------------------------------------------
+       11. HELPER & UTILITIES
+       ------------------------------------------------------------------------- */
+    function switchTab(tabName) {
+      // Blokir jika non-admin mencoba pindah ke tab terlarang
+      if (!isAdminLoggedIn && (tabName === 'history' || tabName === 'settings')) {
+        alert("Akses Ditolak! Tab ini hanya bisa diakses oleh Admin.");
+        return;
+      }
+
+      const tabs = ['dashboard', 'kantin', 'history', 'settings'];
+      tabs.forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const navBtn = document.getElementById(`nav-${t}`);
+        if (navBtn) {
+          if (t === tabName) {
+            navBtn.className = navBtn.className.replace('text-slate-400', 'text-white bg-indigo-600 shadow');
+          } else {
+            navBtn.className = navBtn.className.replace('text-white bg-indigo-600 shadow', 'text-slate-400');
+          }
+        }
+      });
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    }
+
+    function calculateRentalCost(tv) {
+      if (tv.status === "OFF" || !tv.startTime) return 0;
+      const elapsedMs = new Date().getTime() - tv.startTime;
+      const hours = elapsedMs / (1000 * 60 * 60);
+      return Math.round(hours * hourlyRate);
+    }
+
+    function calculateFnBCost(orders) {
+      if (!orders) return 0;
+      return orders.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    }
+
+    function formatRupiah(num) {
+      return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num || 0);
+    }
+
+    function formatDurationText(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function logConsole(msg) {
+      const consoleBox = document.getElementById('console-log');
+      const timeStr = new Date().toLocaleTimeString('id-ID');
+      consoleBox.insertAdjacentHTML('beforeend', `<div>[${timeStr}] ${msg}</div>`);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function clearConsoleLogs() {
+      if (!isAdminLoggedIn) return;
+      document.getElementById('console-log').innerHTML = '<div>[SYSTEM] Console reset.</div>';
+    }
+  </script>
+</body>
+</html>
