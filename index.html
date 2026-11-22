@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PS3 Arena POS - Sistem Kasir Rental 4 TV & Thermal Print</title>
+    <title>LANANG 2 BAHAGIA PS3</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -127,15 +127,26 @@
                 </button>
             </nav>
 
-            <!-- Status Koneksi & Jam Live -->
-            <div class="hidden lg:flex items-center gap-3">
-                <button onclick="pullFromSpreadsheet(true)" id="db-status-badge" title="Klik untuk tarik data terbaru dari Google Spreadsheet" class="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
-                    <span id="db-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span id="db-status-text">Sheets Terhubung</span>
-                </button>
-                <div class="text-right font-mono">
-                    <div id="live-clock" class="text-sm font-bold text-slate-200">00:00:00</div>
-                    <div id="live-date" class="text-[10px] text-slate-400">Memuat tanggal...</div>
+            <!-- Mode Akses, Status Koneksi & Jam Live -->
+            <div class="flex items-center gap-2.5">
+                <div class="flex items-center gap-2">
+                    <span id="role-badge" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 whitespace-nowrap">
+                        <i class="fa-solid fa-user-shield mr-1"></i>Admin
+                    </span>
+                    <button onclick="openAuthModal()" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition whitespace-nowrap" title="Ganti Mode Akses / Kunci">
+                        <i class="fa-solid fa-key mr-1 text-amber-400"></i><span class="hidden sm:inline">Ganti Akses</span>
+                    </button>
+                </div>
+
+                <div class="hidden xl:flex items-center gap-3 pl-2 border-l border-slate-800">
+                    <button onclick="pullFromSpreadsheet(true)" id="db-status-badge" title="Klik untuk tarik data terbaru dari Google Spreadsheet" class="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
+                        <span id="db-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span id="db-status-text">Sheets Terhubung</span>
+                    </button>
+                    <div class="text-right font-mono">
+                        <div id="live-clock" class="text-sm font-bold text-slate-200">00:00:00</div>
+                        <div id="live-date" class="text-[10px] text-slate-400">Memuat tanggal...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -166,7 +177,7 @@
                         <i class="fa-solid fa-hourglass-half"></i>
                     </div>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                <div id="stat-card-today-rev" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
                     <div>
                         <p class="text-xs text-slate-400 font-medium">Omzet Hari Ini</p>
                         <p id="stat-today-rev" class="text-lg sm:text-2xl font-bold text-emerald-400 mt-0.5 font-mono">Rp 0</p>
@@ -205,10 +216,10 @@
                     <p class="text-xs text-slate-400">Kelola stok/harga menu makanan & minuman (tersinkron ke tab <code class="text-indigo-400">Menu_Kantin</code>) atau buat transaksi non-TV.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="syncMenuToSpreadsheet()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs sm:text-sm font-semibold transition flex items-center gap-2 border border-slate-700">
+                    <button id="btn-kantin-sync" onclick="syncMenuToSpreadsheet()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs sm:text-sm font-semibold transition flex items-center gap-2 border border-slate-700">
                         <i class="fa-solid fa-cloud-arrow-up"></i> Sync Menu ke Sheets
                     </button>
-                    <button onclick="openMenuModal()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 border border-slate-700">
+                    <button id="btn-kantin-add" onclick="openMenuModal()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2 border border-slate-700">
                         <i class="fa-solid fa-plus"></i> Tambah Menu
                     </button>
                     <button onclick="openStandalonePosModal()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
@@ -368,6 +379,27 @@
                             Simpan Perubahan Tarif
                         </button>
                     </div>
+
+                    <!-- Pengaturan Password Akses -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-key text-indigo-400"></i> Password Akses Admin & Kasir
+                        </h3>
+                        <p class="text-xs text-slate-400">Atur password untuk mode <b>Admin</b> (akses penuh) dan <b>Kasir</b> (operasional harian). Mode <b>Pelanggan</b> dapat masuk langsung tanpa password.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Password Admin (Pemilik)</label>
+                                <input type="text" id="set-pass-admin" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 mb-1">Password Kasir (Operator)</label>
+                                <input type="text" id="set-pass-kasir" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white font-mono">
+                            </div>
+                        </div>
+                        <button onclick="savePasswords()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved"></i> Simpan Password Akses
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Kolom Kanan: Koneksi Google Spreadsheet Aktif -->
@@ -416,6 +448,51 @@
     </main>
 
     <!-- ==================== MODALS ==================== -->
+
+    <!-- 0. Modal Login Akses Admin / Kasir / Pelanggan -->
+    <div id="modal-auth" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4 no-print">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-indigo-400"></i> Pilih Mode Akses POS
+                </h3>
+                <button onclick="closeAuthModalIfAllowed()" id="btn-close-auth" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button type="button" onclick="selectAuthRole('admin')" id="auth-btn-admin" class="py-2 px-2 rounded-lg text-xs font-bold bg-indigo-600 text-white transition">
+                    <i class="fa-solid fa-user-shield mr-1"></i>Admin
+                </button>
+                <button type="button" onclick="selectAuthRole('kasir')" id="auth-btn-kasir" class="py-2 px-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-cash-register mr-1"></i>Kasir
+                </button>
+                <button type="button" onclick="selectAuthRole('customer')" id="auth-btn-customer" class="py-2 px-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-tv mr-1"></i>Pelanggan
+                </button>
+            </div>
+
+            <div id="auth-password-box" class="space-y-2">
+                <label id="auth-password-label" class="block text-xs font-medium text-slate-300">Password Admin</label>
+                <div class="relative">
+                    <input type="password" id="auth-password-input" onkeydown="if(event.key==='Enter') submitAuthLogin()" placeholder="Masukkan password..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 pr-10 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    <button type="button" onclick="toggleAuthPasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">
+                        <i id="auth-eye-icon" class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
+                <p id="auth-role-desc" class="text-xs text-slate-300 leading-relaxed">Akses penuh: 4 TV Billing, Kantin (kelola menu), Laporan Omzet, & Pengaturan Sistem.</p>
+                <p id="auth-error" class="text-xs text-rose-400 font-medium mt-1.5 hidden"></p>
+            </div>
+
+            <button onclick="submitAuthLogin()" id="auth-submit-btn" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-lg shadow-indigo-600/20 transition">
+                Masuk sebagai Admin
+            </button>
+        </div>
+    </div>
 
     <!-- 1. Modal Mulai Sesi TV -->
     <div id="modal-start-tv" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4 no-print">
@@ -683,6 +760,7 @@
         // --- 1. KONFIGURASI DEFAULT & HARDCODED GOOGLE APPS SCRIPT URL ---
         const DEFAULT_GSHEET_URL = 'https://script.google.com/macros/s/AKfycbxdn3SkAcFFze1xip4VOUwuJWZPcPRV4YpOAgH_EGtVk-0svbF8VtruAr1cqYuE70Nv/exec';
         const STORAGE_KEY = 'ps3_arena_pos_v2';
+        const AUTH_SESSION_KEY = 'ps3_arena_auth_role';
 
         const defaultState = {
             settings: {
@@ -693,7 +771,9 @@
                 paperSize: '80mm', // '58mm' atau '80mm'
                 rateReguler: 5000,
                 rateVip: 7000,
-                gsheetUrl: DEFAULT_GSHEET_URL
+                gsheetUrl: DEFAULT_GSHEET_URL,
+                adminPassword: 'admin123',
+                kasirPassword: 'kasir123'
             },
             tarifPackages: [], // Diisi otomatis jika ada dari tab Pengaturan_Tarif di Sheets
             tvs: [
@@ -716,6 +796,8 @@
         };
 
         let appState = loadState();
+        let activeRole = sessionStorage.getItem(AUTH_SESSION_KEY) || null; // 'admin' | 'customer' | null
+        let selectedLoginRole = 'admin';
         let isAlarmMuted = false;
         let selectedStartPreset = { type: 'minutes', minutes: 60, fixedPrice: null, label: '1 Jam' };
         let tempFnbCart = [];
@@ -732,6 +814,12 @@
                     const mergedSettings = { ...defaultState.settings, ...(parsed.settings || {}) };
                     if (!mergedSettings.gsheetUrl) {
                         mergedSettings.gsheetUrl = DEFAULT_GSHEET_URL;
+                    }
+                    if (!mergedSettings.adminPassword) {
+                        mergedSettings.adminPassword = 'admin123';
+                    }
+                    if (!mergedSettings.kasirPassword) {
+                        mergedSettings.kasirPassword = 'kasir123';
                     }
                     return {
                         settings: mergedSettings,
@@ -753,6 +841,206 @@
             } catch (e) {
                 console.error('Gagal menyimpan state:', e);
             }
+        }
+
+        // --- 1B. AUTENTIKASI ADMIN, KASIR & PELANGGAN ---
+        function isAdmin() {
+            return activeRole === 'admin';
+        }
+
+        function isStaff() {
+            return activeRole === 'admin' || activeRole === 'kasir';
+        }
+
+        function openAuthModal(defaultRole = null) {
+            selectedLoginRole = defaultRole || (activeRole || 'admin');
+            selectAuthRole(selectedLoginRole);
+            const pwdInput = document.getElementById('auth-password-input');
+            pwdInput.value = '';
+            pwdInput.type = 'password';
+            document.getElementById('auth-eye-icon').className = 'fa-solid fa-eye';
+            document.getElementById('auth-error').classList.add('hidden');
+            document.getElementById('btn-close-auth').classList.toggle('hidden', !activeRole);
+            openModal('modal-auth');
+            if (selectedLoginRole !== 'customer') {
+                setTimeout(() => pwdInput.focus(), 100);
+            }
+        }
+
+        function closeAuthModalIfAllowed() {
+            if (activeRole) {
+                closeModal('modal-auth');
+            }
+        }
+
+        function toggleAuthPasswordVisibility() {
+            const pwdInput = document.getElementById('auth-password-input');
+            const eyeIcon = document.getElementById('auth-eye-icon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeIcon.className = 'fa-solid fa-eye-slash';
+            } else {
+                pwdInput.type = 'password';
+                eyeIcon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function selectAuthRole(role) {
+            selectedLoginRole = role;
+            const btnAdmin = document.getElementById('auth-btn-admin');
+            const btnKasir = document.getElementById('auth-btn-kasir');
+            const btnCust = document.getElementById('auth-btn-customer');
+            const pwdBox = document.getElementById('auth-password-box');
+            const label = document.getElementById('auth-password-label');
+            const desc = document.getElementById('auth-role-desc');
+            const submitBtn = document.getElementById('auth-submit-btn');
+            document.getElementById('auth-error').classList.add('hidden');
+
+            const inactiveCls = 'py-2 px-2 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+            btnAdmin.className = inactiveCls;
+            btnKasir.className = inactiveCls;
+            btnCust.className = inactiveCls;
+
+            if (role === 'admin') {
+                btnAdmin.className = 'py-2 px-2 rounded-lg text-xs font-bold bg-indigo-600 text-white transition';
+                pwdBox.classList.remove('hidden');
+                label.textContent = 'Password Admin (Pemilik)';
+                desc.innerHTML = '<b>Akses Penuh:</b> Billing 4 TV, kelola & hapus menu kantin, laporan omzet penuh, dan pengaturan sistem.';
+                submitBtn.className = 'w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold shadow-lg shadow-indigo-600/20 transition';
+                submitBtn.textContent = 'Masuk sebagai Admin';
+                setTimeout(() => document.getElementById('auth-password-input').focus(), 50);
+            } else if (role === 'kasir') {
+                btnKasir.className = 'py-2 px-2 rounded-lg text-xs font-bold bg-amber-600 text-white transition';
+                pwdBox.classList.remove('hidden');
+                label.textContent = 'Password Kasir (Operator)';
+                desc.innerHTML = '<b>Akses Terbatas:</b> Mulai/tambah/pindah TV, order kantin & checkout pelanggan. <i>Tidak dapat mengakses Laporan Omzet, Pengaturan, edit/hapus menu, atau memberi diskon.</i>';
+                submitBtn.className = 'w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold shadow-lg shadow-amber-600/20 transition';
+                submitBtn.textContent = 'Masuk sebagai Kasir';
+                setTimeout(() => document.getElementById('auth-password-input').focus(), 50);
+            } else {
+                btnCust.className = 'py-2 px-2 rounded-lg text-xs font-bold bg-emerald-600 text-white transition';
+                pwdBox.classList.add('hidden');
+                desc.innerHTML = '<b>Tanpa Password (Monitor):</b> Pelanggan dapat melihat sisa waktu & tagihan 4 TV secara langsung (read-only).';
+                submitBtn.className = 'w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-600/20 transition';
+                submitBtn.textContent = 'Masuk Mode Pelanggan (Tanpa Password)';
+            }
+        }
+
+        function submitAuthLogin() {
+            const errEl = document.getElementById('auth-error');
+
+            if (selectedLoginRole === 'customer') {
+                activeRole = 'customer';
+                sessionStorage.setItem(AUTH_SESSION_KEY, activeRole);
+                closeModal('modal-auth');
+                applyRolePermissions();
+                renderTvCards();
+                showToast('Masuk sebagai Pelanggan (Mode Monitor)', 'success');
+                return;
+            }
+
+            const inputPass = document.getElementById('auth-password-input').value;
+            const expectedPass = selectedLoginRole === 'admin'
+                ? (appState.settings.adminPassword || 'admin123')
+                : (appState.settings.kasirPassword || 'kasir123');
+
+            if (inputPass !== expectedPass) {
+                errEl.textContent = `Password ${selectedLoginRole === 'admin' ? 'Admin' : 'Kasir'} salah! Silakan coba lagi.`;
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            activeRole = selectedLoginRole;
+            sessionStorage.setItem(AUTH_SESSION_KEY, activeRole);
+            closeModal('modal-auth');
+            applyRolePermissions();
+            renderTvCards();
+            showToast(`Masuk sebagai ${activeRole === 'admin' ? 'Admin' : 'Kasir'}`, 'success');
+        }
+
+        function applyRolePermissions() {
+            const badge = document.getElementById('role-badge');
+            const tabKantin = document.getElementById('tab-kantin');
+            const tabLaporan = document.getElementById('tab-laporan');
+            const tabPengaturan = document.getElementById('tab-pengaturan');
+            const todayRevCard = document.getElementById('stat-card-today-rev');
+            const btnMute = document.getElementById('btn-mute-alarm');
+            const badgePaper = document.getElementById('badge-paper-size');
+            const btnKantinAdd = document.getElementById('btn-kantin-add');
+            const btnKantinSync = document.getElementById('btn-kantin-sync');
+            const coDiscountInput = document.getElementById('co-discount');
+
+            if (activeRole === 'admin') {
+                badge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 whitespace-nowrap';
+                badge.innerHTML = `<i class="fa-solid fa-user-shield mr-1"></i>Admin`;
+                tabKantin.classList.remove('hidden');
+                tabLaporan.classList.remove('hidden');
+                tabPengaturan.classList.remove('hidden');
+                todayRevCard.classList.remove('hidden');
+                btnMute.classList.remove('pointer-events-none', 'opacity-60');
+                badgePaper.classList.remove('pointer-events-none', 'opacity-60');
+                if (btnKantinAdd) btnKantinAdd.classList.remove('hidden');
+                if (btnKantinSync) btnKantinSync.classList.remove('hidden');
+                if (coDiscountInput) {
+                    coDiscountInput.disabled = false;
+                    coDiscountInput.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            } else if (activeRole === 'kasir') {
+                badge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 whitespace-nowrap';
+                badge.innerHTML = `<i class="fa-solid fa-cash-register mr-1"></i>Kasir`;
+                // Kasir boleh akses 4 TV Billing & Kantin (untuk jualan), tapi dilarang buka Laporan Omzet & Pengaturan
+                tabKantin.classList.remove('hidden');
+                tabLaporan.classList.add('hidden');
+                tabPengaturan.classList.add('hidden');
+                todayRevCard.classList.add('hidden'); // Sembunyikan total omzet harian dari kasir
+                btnMute.classList.remove('pointer-events-none', 'opacity-60');
+                badgePaper.classList.add('pointer-events-none', 'opacity-60');
+                if (btnKantinAdd) btnKantinAdd.classList.add('hidden'); // Kasir tidak bisa tambah/edit/hapus menu
+                if (btnKantinSync) btnKantinSync.classList.add('hidden');
+                if (coDiscountInput) {
+                    coDiscountInput.disabled = true; // Kasir tidak bisa memberi diskon sembarangan
+                    coDiscountInput.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+                // Jika sedang di tab laporan/pengaturan, kembalikan ke dashboard
+                if (!document.getElementById('view-laporan').classList.contains('hidden') ||
+                    !document.getElementById('view-pengaturan').classList.contains('hidden')) {
+                    switchTab('dashboard');
+                }
+            } else {
+                // Mode Pelanggan (Tanpa Password)
+                badge.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap';
+                badge.innerHTML = `<i class="fa-solid fa-tv mr-1"></i>Pelanggan`;
+                tabKantin.classList.add('hidden');
+                tabLaporan.classList.add('hidden');
+                tabPengaturan.classList.add('hidden');
+                todayRevCard.classList.add('hidden');
+                btnMute.classList.add('pointer-events-none', 'opacity-60');
+                badgePaper.classList.add('pointer-events-none', 'opacity-60');
+                ['kantin', 'laporan', 'pengaturan'].forEach(t => {
+                    document.getElementById(`view-${t}`).classList.add('hidden');
+                });
+                document.getElementById('view-dashboard').classList.remove('hidden');
+                const dashBtn = document.getElementById('tab-dashboard');
+                dashBtn.classList.add('bg-indigo-600', 'text-white', 'shadow');
+                dashBtn.classList.remove('text-slate-400');
+            }
+        }
+
+        function savePasswords() {
+            if (!isAdmin()) {
+                showToast('Hanya Admin yang dapat mengubah password', 'error');
+                return;
+            }
+            const pAdmin = document.getElementById('set-pass-admin').value.trim();
+            const pKasir = document.getElementById('set-pass-kasir').value.trim();
+            if (!pAdmin || !pKasir) {
+                showToast('Password Admin dan Kasir tidak boleh kosong', 'error');
+                return;
+            }
+            appState.settings.adminPassword = pAdmin;
+            appState.settings.kasirPassword = pKasir;
+            saveState();
+            showToast('Password Admin & Kasir berhasil disimpan', 'success');
         }
 
         // --- 2. UTILITAS FORMAT & AUDIO ALARM ---
@@ -797,6 +1085,7 @@
         }
 
         function toggleMuteAlarm() {
+            if (!isStaff()) return;
             isAlarmMuted = !isAlarmMuted;
             const btn = document.getElementById('btn-mute-alarm');
             if (isAlarmMuted) {
@@ -834,6 +1123,16 @@
 
         // --- 3. NAVIGASI TAB ---
         function switchTab(tabName) {
+            if ((tabName === 'laporan' || tabName === 'pengaturan') && !isAdmin()) {
+                showToast('Akses tab ini khusus Admin', 'error');
+                openAuthModal('admin');
+                return;
+            }
+            if (tabName === 'kantin' && !isStaff()) {
+                showToast('Akses tab ini khusus Admin / Kasir', 'error');
+                openAuthModal('kasir');
+                return;
+            }
             ['dashboard', 'kantin', 'laporan', 'pengaturan'].forEach(t => {
                 document.getElementById(`view-${t}`).classList.add('hidden');
                 const btn = document.getElementById(`tab-${t}`);
@@ -900,6 +1199,7 @@
             const grid = document.getElementById('tv-cards-grid');
             let activeCount = 0;
             let runningRev = 0;
+            const adminMode = isStaff();
 
             grid.innerHTML = appState.tvs.map(tv => {
                 const bill = calculateTvBilling(tv);
@@ -956,9 +1256,13 @@
                             <p class="text-2xl font-mono font-bold text-slate-600 mt-1">00:00:00</p>
                         </div>
 
+                        ${adminMode ? `
                         <button onclick="openStartTvModal(${tv.id})" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/20 transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-play"></i> Mulai Sesi Billing
-                        </button>
+                        </button>` : `
+                        <div class="w-full py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400">
+                            <i class="fa-solid fa-tv mr-1.5 text-emerald-400"></i>Unit Kosong &bull; Hubungi Kasir untuk Main
+                        </div>`}
                     </div>`;
                 }
 
@@ -1012,6 +1316,7 @@
                         </div>
                     </div>
 
+                    ${adminMode ? `
                     <div class="grid grid-cols-4 gap-2">
                         <button onclick="openExtendModal(${tv.id})" ${tv.mode === 'open' ? 'disabled' : ''} title="Tambah Waktu" class="py-2.5 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:pointer-events-none text-slate-200 text-xs font-semibold transition flex flex-col items-center justify-center gap-1">
                             <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i>
@@ -1030,7 +1335,10 @@
                             <i class="fa-solid fa-receipt"></i>
                             <span>Bayar</span>
                         </button>
-                    </div>
+                    </div>` : `
+                    <div class="w-full py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-center text-[11px] text-slate-400">
+                        <i class="fa-solid fa-eye mr-1 text-indigo-400"></i>Tampilan Monitor Pelanggan (Read-Only)
+                    </div>`}
                 </div>`;
             }).join('');
 
@@ -1046,6 +1354,7 @@
 
         // --- 5. MODAL MULAI SEWA, EXTEND & PINDAH TV ---
         function openStartTvModal(tvId) {
+            if (!isStaff()) return;
             const tv = appState.tvs.find(t => t.id === tvId);
             document.getElementById('start-tv-id').value = tvId;
             document.getElementById('start-tv-title').textContent = tv.name;
@@ -1057,7 +1366,6 @@
                 <option value="vip" ${tv.rateType === 'vip' ? 'selected' : ''}>PS3 VIP - ${formatRp(appState.settings.rateVip)} / jam</option>
             `;
 
-            // Render preset paket waktu (gabungan standar + dari sheet Pengaturan_Tarif jika ada)
             const presetGrid = document.getElementById('start-preset-grid');
             const presets = [
                 { type: 'minutes', minutes: 60, fixedPrice: null, label: '1 Jam' },
@@ -1066,7 +1374,6 @@
                 { type: 'minutes', minutes: 300, fixedPrice: null, label: '5 Jam' }
             ];
 
-            // Tambahkan paket khusus dari Google Sheets jika tersedia
             (appState.tarifPackages || []).forEach(pkg => {
                 const dur = Number(pkg.Durasi_Menit || 0);
                 const hrg = Number(pkg.Harga || 0);
@@ -1130,6 +1437,7 @@
         }
 
         function confirmStartTv() {
+            if (!isStaff()) return;
             const tvId = parseInt(document.getElementById('start-tv-id').value);
             const tv = appState.tvs.find(t => t.id === tvId);
             const customer = document.getElementById('start-customer-name').value.trim() || 'Pelanggan Umum';
@@ -1171,6 +1479,7 @@
         }
 
         function openExtendModal(tvId) {
+            if (!isStaff()) return;
             const tv = appState.tvs.find(t => t.id === tvId);
             document.getElementById('extend-tv-id').value = tvId;
             document.getElementById('extend-tv-title').textContent = tv.name;
@@ -1179,6 +1488,7 @@
         }
 
         function confirmExtendTv(extraMinutes) {
+            if (!isStaff()) return;
             if (!extraMinutes || extraMinutes <= 0) {
                 showToast('Masukkan durasi menit yang valid', 'error');
                 return;
@@ -1186,7 +1496,6 @@
             const tvId = parseInt(document.getElementById('extend-tv-id').value);
             const tv = appState.tvs.find(t => t.id === tvId);
 
-            // Jika sebelumnya pakai paket harga tetap, konversi ke perhitungan per jam saat ditambah waktu
             if (tv.fixedPrice !== null) {
                 const extraCost = Math.round((extraMinutes / 60) * tv.hourlyRate);
                 tv.fixedPrice = Number(tv.fixedPrice) + extraCost;
@@ -1210,6 +1519,7 @@
         }
 
         function openMoveTvModal(fromId) {
+            if (!isStaff()) return;
             const fromTv = appState.tvs.find(t => t.id === fromId);
             document.getElementById('move-from-id').value = fromId;
             document.getElementById('move-from-title').textContent = fromTv.name;
@@ -1231,6 +1541,7 @@
         }
 
         function confirmMoveTv(fromId, toId) {
+            if (!isStaff()) return;
             const fromTv = appState.tvs.find(t => t.id === fromId);
             const toTv = appState.tvs.find(t => t.id === toId);
 
@@ -1271,10 +1582,11 @@
                     <div>
                         <div class="flex items-center justify-between gap-2 mb-2">
                             <span class="px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${badgeColor}">${m.category}</span>
+                            ${isAdmin() ? `
                             <div class="flex items-center gap-1">
                                 <button onclick="openMenuModal('${m.id}')" class="p-1.5 text-slate-400 hover:text-indigo-400 transition" title="Edit"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
                                 <button onclick="deleteMenuItem('${m.id}')" class="p-1.5 text-slate-400 hover:text-rose-400 transition" title="Hapus"><i class="fa-solid fa-trash text-xs"></i></button>
-                            </div>
+                            </div>` : ''}
                         </div>
                         <h4 class="font-bold text-white text-sm sm:text-base">${m.name}</h4>
                         <p class="text-[11px] text-slate-400 mt-1">Stok: <span class="font-mono text-slate-200">${m.stock ?? 20}</span> &bull; ${m.status || 'Tersedia'}</p>
@@ -1288,6 +1600,7 @@
         }
 
         function openMenuModal(menuId = null) {
+            if (!isAdmin()) return;
             if (menuId) {
                 const m = appState.menus.find(x => x.id === menuId);
                 document.getElementById('menu-form-title').textContent = 'Edit Menu Kantin';
@@ -1308,6 +1621,7 @@
         }
 
         function saveMenuItem() {
+            if (!isAdmin()) return;
             const editId = document.getElementById('menu-edit-id').value;
             const name = document.getElementById('menu-name').value.trim();
             const category = document.getElementById('menu-category').value;
@@ -1341,6 +1655,7 @@
         }
 
         function deleteMenuItem(id) {
+            if (!isAdmin()) return;
             appState.menus = appState.menus.filter(m => m.id !== id);
             saveState();
             renderKantinGrid();
@@ -1349,6 +1664,7 @@
         }
 
         function openFnbForTvModal(tvId) {
+            if (!isStaff()) return;
             isStandaloneFnbMode = false;
             const tv = appState.tvs.find(t => t.id === tvId);
             document.getElementById('fnb-target-tv-id').value = tvId;
@@ -1360,6 +1676,7 @@
         }
 
         function openStandalonePosModal() {
+            if (!isStaff()) return;
             isStandaloneFnbMode = true;
             document.getElementById('fnb-target-tv-id').value = 'general';
             document.getElementById('fnb-target-label').textContent = 'Pembeli Umum (Non-Rental)';
@@ -1424,6 +1741,7 @@
         }
 
         function saveFnbOrder() {
+            if (!isStaff()) return;
             if (isStandaloneFnbMode) {
                 if (tempFnbCart.length === 0) {
                     showToast('Pilih minimal 1 item menu terlebih dahulu', 'error');
@@ -1447,6 +1765,7 @@
         let currentCheckoutData = null;
 
         function openCheckoutModal(target) {
+            if (!isStaff()) return;
             document.getElementById('checkout-tv-id').value = target;
             document.getElementById('co-discount').value = 0;
             document.getElementById('co-payment-method').value = 'Tunai';
@@ -1524,6 +1843,7 @@
         }
 
         async function processCheckout() {
+            if (!isStaff()) return;
             const discount = Math.max(0, parseInt(document.getElementById('co-discount').value || 0));
             const subTotal = currentCheckoutData.biayaSewa + currentCheckoutData.biayaKantin;
             const grandTotal = Math.max(0, subTotal - discount);
@@ -1560,7 +1880,6 @@
                 synced: false
             };
 
-            // Kurangi stok menu kantin lokal jika terjual
             tx.fnbOrders.forEach(ordered => {
                 const m = appState.menus.find(x => x.id === ordered.id || x.name === ordered.name);
                 if (m && typeof m.stock === 'number') {
@@ -1569,10 +1888,8 @@
                 }
             });
 
-            // Simpan transaksi lokal
             appState.transactions.unshift(tx);
 
-            // Reset TV
             if (!currentCheckoutData.isGeneral) {
                 const tv = appState.tvs.find(t => t.id === currentCheckoutData.tvId);
                 tv.status = 'available';
@@ -1590,7 +1907,6 @@
             renderTvCards();
             showReceiptModal(tx);
 
-            // Kirim ke Google Spreadsheet secara real-time
             if (appState.settings.gsheetUrl) {
                 sendTransactionToSheet(tx);
             }
@@ -1782,13 +2098,13 @@
                     return left + ' '.repeat(space) + right + '\n';
                 };
 
-                let esc = '\x1B\x40'; // Initialize printer
-                esc += '\x1B\x61\x01'; // Center align
+                let esc = '\x1B\x40';
+                esc += '\x1B\x61\x01';
                 esc += '\x1B\x45\x01' + appState.settings.storeName.toUpperCase() + '\n\x1B\x45\x00';
                 esc += appState.settings.storeAddress + '\n';
                 if (appState.settings.storePhone) esc += 'Telp: ' + appState.settings.storePhone + '\n';
                 esc += line;
-                esc += '\x1B\x61\x00'; // Left align
+                esc += '\x1B\x61\x00';
                 esc += padRow('Nota:', tx.id);
                 esc += padRow('Waktu:', `${tx.tanggal} ${tx.waktu}`);
                 esc += padRow('Unit:', tx.unitTv);
@@ -1809,7 +2125,7 @@
                 esc += padRow('Bayar', 'Rp ' + Number(tx.uangDiterima).toLocaleString('id-ID'));
                 esc += padRow('Kembali', 'Rp ' + Number(tx.kembalian).toLocaleString('id-ID'));
                 esc += line;
-                esc += '\x1B\x61\x01' + appState.settings.storeFooter + '\n*** LUNAS ***\n\n\n\x1D\x56\x41\x00'; // Feed & Cut
+                esc += '\x1B\x61\x01' + appState.settings.storeFooter + '\n*** LUNAS ***\n\n\n\x1D\x56\x41\x00';
 
                 const encoder = new TextEncoder();
                 const bytes = encoder.encode(esc);
@@ -1929,14 +2245,12 @@
             text.textContent = label;
         }
 
-        // Mengirim 1 transaksi baru ke Google Sheets (action: addTransaksi)
         async function sendTransactionToSheet(tx) {
             const url = appState.settings.gsheetUrl;
             if (!url) return false;
             setConnectionStatus('syncing', 'Menyimpan ke Sheets...');
 
             try {
-                // Gunakan text/plain agar terhindar dari CORS preflight OPTIONS pada Google Apps Script
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1991,7 +2305,6 @@
             return false;
         }
 
-        // Mengirim transaksi lokal yang belum tersinkronisasi
         async function syncPendingTransactions() {
             const pending = appState.transactions.filter(t => !t.synced);
             if (pending.length === 0) {
@@ -2008,7 +2321,6 @@
             showToast(`${successCount} dari ${pending.length} transaksi berhasil dikirim ke Sheets!`, 'success');
         }
 
-        // Mengirim master menu ke tab Menu_Kantin (action: syncMenu)
         async function syncMenuToSpreadsheet() {
             const url = appState.settings.gsheetUrl;
             if (!url) return;
@@ -2038,7 +2350,6 @@
             }
         }
 
-        // Menarik data Menu_Kantin, Pengaturan_Tarif, dan Transaksi dari Google Sheets (GET ?action=getAll)
         async function pullFromSpreadsheet(notifyUser = false) {
             const url = appState.settings.gsheetUrl;
             if (!url) return;
@@ -2051,7 +2362,6 @@
                 if (json.status === 'success' && json.data) {
                     const { menu, tarif, transaksi } = json.data;
 
-                    // 1. Update Menu Kantin jika sheet sudah terisi data
                     if (Array.isArray(menu) && menu.length > 0) {
                         appState.menus = menu.map((row, i) => ({
                             id: row.ID_Menu || `MN-${i + 1}`,
@@ -2063,7 +2373,6 @@
                         }));
                     }
 
-                    // 2. Update Tarif jika sheet Pengaturan_Tarif memiliki baris data
                     if (Array.isArray(tarif) && tarif.length > 0) {
                         appState.tarifPackages = tarif;
                         const regRow = tarif.find(r => String(r.Kode_Paket || '').toUpperCase().includes('REG'));
@@ -2072,7 +2381,6 @@
                         if (vipRow && Number(vipRow.Harga) > 0) appState.settings.rateVip = Number(vipRow.Harga);
                     }
 
-                    // 3. Gabungkan riwayat transaksi dari Sheets tanpa menimpa transaksi lokal yang tertunda
                     if (Array.isArray(transaksi) && transaksi.length > 0) {
                         const localUnsynced = appState.transactions.filter(t => !t.synced);
                         const sheetTxs = transaksi.map(r => {
@@ -2135,6 +2443,8 @@
             document.getElementById('set-store-footer').value = appState.settings.storeFooter || 'Terima kasih telah bermain!';
             document.getElementById('set-rate-reguler').value = appState.settings.rateReguler;
             document.getElementById('set-rate-vip').value = appState.settings.rateVip;
+            document.getElementById('set-pass-admin').value = appState.settings.adminPassword || 'admin123';
+            document.getElementById('set-pass-kasir').value = appState.settings.kasirPassword || 'kasir123';
             highlightPaperButton(appState.settings.paperSize || '80mm');
         }
 
@@ -2207,6 +2517,14 @@
             applyThermalPaperCSS(appState.settings.paperSize || '80mm');
             updateClock();
             renderTvCards();
+
+            // Cek sesi login Admin / Pelanggan saat halaman dibuka
+            if (!activeRole) {
+                openAuthModal('admin');
+            } else {
+                applyRolePermissions();
+                renderTvCards();
+            }
 
             // Tarik data terbaru dari Google Spreadsheet saat aplikasi pertama kali dibuka
             pullFromSpreadsheet(false);
