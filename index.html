@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LANANG 2 BAHAGIA PS3</title>
+    <title>PS3 Arena POS - Sistem Kasir Rental 4 TV & Thermal Print</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -108,7 +108,7 @@
                     <i class="fa-brands fa-playstation text-xl text-white"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-tight">LANANG 2 BAHAGIA <span class="text-indigo-400">PS3</span></h1>
+                    <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-tight">PS3 ARENA <span class="text-indigo-400">POS</span></h1>
                     <p class="text-[11px] text-slate-400 hidden sm:block">4 TV Billing &bull; Thermal Print &bull; Google Sheets</p>
                 </div>
             </div>
@@ -429,6 +429,9 @@
                             </button>
                             <button onclick="syncPendingTransactions()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
                                 <i class="fa-solid fa-cloud-arrow-up"></i> Kirim Transaksi Tertunda
+                            </button>
+                            <button onclick="forceSyncTvStatus()" class="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs sm:text-sm font-semibold transition flex items-center gap-2">
+                                <i class="fa-solid fa-tv"></i> Sync Status_TV
                             </button>
                         </div>
                         <p id="sync-feedback" class="text-xs text-slate-400"></p>
@@ -839,9 +842,16 @@
             return JSON.parse(JSON.stringify(defaultState));
         }
 
-        function saveState() {
+        function saveState(broadcast = true) {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+                const serialized = JSON.stringify(appState);
+                localStorage.setItem(STORAGE_KEY, serialized);
+                if (broadcast && typeof BroadcastChannel !== 'undefined') {
+                    if (!window.__tvSyncChannel) {
+                        window.__tvSyncChannel = new BroadcastChannel('ps3_arena_tv_sync');
+                    }
+                    window.__tvSyncChannel.postMessage({ type: 'STATE_UPDATED', ts: Date.now() });
+                }
             } catch (e) {
                 console.error('Gagal menyimpan state:', e);
             }
@@ -1263,6 +1273,10 @@
                     }
                 }
 
+                if (tv.startTime && tv.status === 'available') {
+                    tv.status = 'playing';
+                    saveState();
+                }
                 if (tv.status === 'available') {
                     return `
                     <div class="bg-slate-900 border border-emerald-500/30 hover:border-emerald-500/60 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-lg">
@@ -1536,6 +1550,7 @@
             tv.warningPlayed = false;
 
             saveState();
+            syncTvStatusToSheet();
             closeModal('modal-start-tv');
             renderTvCards();
             showToast(`${tv.name} mulai bermain (${customer})`, 'success');
@@ -1576,6 +1591,7 @@
             tv.warningPlayed = false;
 
             saveState();
+            syncTvStatusToSheet();
             closeModal('modal-extend-tv');
             renderTvCards();
             showToast(`Berhasil tambah ${extraMinutes} menit untuk ${tv.name}`, 'success');
@@ -1630,6 +1646,7 @@
             fromTv.warningPlayed = false;
 
             saveState();
+            syncTvStatusToSheet();
             closeModal('modal-move-tv');
             renderTvCards();
             showToast(`Sesi dipindahkan dari ${fromTv.name} ke ${toTv.name}`, 'success');
@@ -1819,6 +1836,7 @@
             const tv = appState.tvs.find(t => t.id === tvId);
             tv.fnbOrders = JSON.parse(JSON.stringify(tempFnbCart));
             saveState();
+            syncTvStatusToSheet();
             closeModal('modal-order-fnb');
             renderTvCards();
             showToast(`Pesanan kantin ${tv.name} diperbarui`, 'success');
@@ -1963,6 +1981,7 @@
                 tv.fnbOrders = [];
                 tv.alarmPlayed = false;
                 tv.warningPlayed = false;
+                syncTvStatusToSheet();
             }
 
             saveState();
@@ -2487,6 +2506,47 @@
             }
         }
 
+        async function forceSyncTvStatus() {
+            if (!isStaff()) {
+                showToast('Akses ini khusus Admin / Kasir', 'error');
+                return;
+            }
+            await syncTvStatusToSheet();
+            showToast('Permintaan sinkronisasi Status_TV dikirim ke Sheets', 'info');
+        }
+
+        async function syncTvStatusToSheet() {
+            const url = appState.settings.gsheetUrl;
+            if (!url) return;
+            try {
+                const payload = {
+                    action: 'syncTvStatus',
+                    data: appState.tvs.map(tv => ({
+                        id: tv.id,
+                        name: tv.name,
+                        label: tv.label,
+                        status: tv.status,
+                        customer: tv.customer || '',
+                        rateType: tv.rateType || 'reguler',
+                        hourlyRate: Number(tv.hourlyRate || 0),
+                        fixedPrice: tv.fixedPrice !== null && tv.fixedPrice !== undefined ? Number(tv.fixedPrice) : null,
+                        mode: tv.mode || 'fixed',
+                        startTime: tv.startTime || null,
+                        durationMinutes: Number(tv.durationMinutes || 0),
+                        fnbOrders: tv.fnbOrders || []
+                    }))
+                };
+                await fetch(url, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.warn('Gagal sync status TV ke Sheets:', e);
+            }
+        }
+
         async function pullFromSpreadsheet(notifyUser = false) {
             const url = appState.settings.gsheetUrl;
             if (!url) return;
@@ -2497,7 +2557,39 @@
                 const json = await res.json();
 
                 if (json.status === 'success' && json.data) {
-                    const { menu, tarif, transaksi } = json.data;
+                    const { menu, tarif, transaksi, tv_status, tvs } = json.data;
+                    const remoteTvs = Array.isArray(tv_status) ? tv_status : (Array.isArray(tvs) ? tvs : null);
+                    if (remoteTvs && remoteTvs.length > 0) {
+                        remoteTvs.forEach(rt => {
+                            const rawId = rt.id ?? rt.ID_TV ?? rt.Nama_TV ?? rt.name ?? '';
+                            const idNum = Number(String(rawId).replace(/\D+/g, '') || 0);
+                            const target = appState.tvs.find(t =>
+                                Number(t.id) === idNum ||
+                                String(t.name).toLowerCase() === String(rt.name || rt.Nama_TV || '').trim().toLowerCase()
+                            );
+                            if (target) {
+                                const st = String(rt.status || rt.Status || 'available').trim().toLowerCase();
+                                const parsedStart = (rt.startTime !== '' && rt.startTime !== null && rt.startTime !== undefined)
+                                    ? Number(rt.startTime)
+                                    : null;
+                                const isPlayingLabel = st === 'playing' || st === 'sedang main' || st === 'main' || st === 'aktif' || st === 'occupied' || Boolean(parsedStart);
+                                target.status = isPlayingLabel ? 'playing' : 'available';
+                                target.customer = String(rt.customer ?? rt.Nama_Pelanggan ?? '');
+                                target.rateType = String(rt.rateType ?? rt.Tipe_Tarif ?? target.rateType ?? 'reguler').toLowerCase();
+                                target.hourlyRate = Number(rt.hourlyRate ?? rt.Tarif_Jam ?? target.hourlyRate ?? 0);
+                                const rawFixed = rt.fixedPrice ?? rt.Fixed_Price;
+                                target.fixedPrice = (rawFixed !== '' && rawFixed !== null && rawFixed !== undefined) ? Number(rawFixed) : null;
+                                target.mode = String(rt.mode ?? rt.Mode ?? 'fixed').toLowerCase();
+                                target.startTime = parsedStart;
+                                target.durationMinutes = Number(rt.durationMinutes ?? rt.Durasi_Menit ?? 0);
+                                if (Array.isArray(rt.fnbOrders)) {
+                                    target.fnbOrders = rt.fnbOrders;
+                                } else if (typeof rt.fnbOrders === 'string' && rt.fnbOrders.trim().startsWith('[')) {
+                                    try { target.fnbOrders = JSON.parse(rt.fnbOrders); } catch (_) {}
+                                }
+                            }
+                        });
+                    }
 
                     if (Array.isArray(menu) && menu.length > 0) {
                         appState.menus = menu.map((row, i) => ({
@@ -2555,7 +2647,7 @@
                         appState.transactions = Array.from(mapById.values());
                     }
 
-                    saveState();
+                    saveState(false);
                     renderTvCards();
                     if (!document.getElementById('view-kantin').classList.contains('hidden')) renderKantinGrid();
                     if (!document.getElementById('view-laporan').classList.contains('hidden')) renderReport();
@@ -2664,8 +2756,37 @@
                 renderTvCards();
             }
 
+            // Sinkronisasi instan antar tab/jendela pada browser yang sama
+            window.addEventListener('storage', function (ev) {
+                if (ev.key === STORAGE_KEY && ev.newValue) {
+                    appState = loadState();
+                    renderTvCards();
+                    if (!document.getElementById('view-kantin').classList.contains('hidden')) renderKantinGrid();
+                    if (!document.getElementById('view-laporan').classList.contains('hidden')) renderReport();
+                }
+            });
+
+            if (typeof BroadcastChannel !== 'undefined') {
+                if (!window.__tvSyncChannel) {
+                    window.__tvSyncChannel = new BroadcastChannel('ps3_arena_tv_sync');
+                }
+                window.__tvSyncChannel.onmessage = function (ev) {
+                    if (ev && ev.data && ev.data.type === 'STATE_UPDATED') {
+                        appState = loadState();
+                        renderTvCards();
+                        if (!document.getElementById('view-kantin').classList.contains('hidden')) renderKantinGrid();
+                        if (!document.getElementById('view-laporan').classList.contains('hidden')) renderReport();
+                    }
+                };
+            }
+
             // Tarik data terbaru dari Google Spreadsheet saat aplikasi pertama kali dibuka
             pullFromSpreadsheet(false);
+
+            // Polling berkala setiap 5 detik agar tab lain / monitor pelanggan selalu sinkron dengan Sheets
+            setInterval(() => {
+                pullFromSpreadsheet(false);
+            }, 5000);
 
             // Interval real-time 1 detik untuk timer billing & jam
             setInterval(() => {
