@@ -261,7 +261,7 @@
                 <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h3 class="font-bold text-white">Riwayat Transaksi & Cetak Ulang Struk Thermal</h3>
-                        <p class="text-xs text-slate-400">Klik ikon printer pada baris transaksi untuk mencetak ulang struk kapan saja.</p>
+                        <p class="text-xs text-slate-400">Klik ikon printer untuk mencetak ulang struk, atau ikon tempat sampah (khusus Admin) untuk menghapus riwayat transaksi.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <input type="date" id="filter-date" onchange="renderReport()" class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
@@ -287,7 +287,7 @@
                                 <th class="py-3.5 px-4 text-right">Total</th>
                                 <th class="py-3.5 px-4 text-center">Metode</th>
                                 <th class="py-3.5 px-4 text-center">Status</th>
-                                <th class="py-3.5 px-4 text-center">Struk</th>
+                                <th class="py-3.5 px-4 text-center">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-tbody" class="divide-y divide-slate-800/70 text-xs sm:text-sm">
@@ -2186,9 +2186,15 @@
                             : `<span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-500/15 text-amber-400 border border-amber-500/20">Tertunda</span>`}
                     </td>
                     <td class="py-3 px-4 text-center">
-                        <button onclick='reprintTransaction("${tx.id}")' class="p-2 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white transition" title="Cetak Ulang Struk Thermal">
-                            <i class="fa-solid fa-print text-xs"></i>
-                        </button>
+                        <div class="inline-flex items-center justify-center gap-1.5">
+                            <button onclick='reprintTransaction("${tx.id}")' class="p-2 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white transition" title="Cetak Ulang Struk Thermal">
+                                <i class="fa-solid fa-print text-xs"></i>
+                            </button>
+                            ${isAdmin() ? `
+                            <button onclick='deleteTransaction("${tx.id}")' class="p-2 rounded-lg bg-slate-800 hover:bg-rose-600 text-rose-400 hover:text-white transition" title="Hapus Transaksi">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>` : ''}
+                        </div>
                     </td>
                 </tr>
             `).join('');
@@ -2197,6 +2203,42 @@
         function reprintTransaction(txId) {
             const tx = appState.transactions.find(t => t.id === txId);
             if (tx) showReceiptModal(tx);
+        }
+
+        async function deleteTransaction(txId) {
+            if (!isAdmin()) {
+                showToast('Hanya Admin yang dapat menghapus transaksi', 'error');
+                return;
+            }
+            const tx = appState.transactions.find(t => t.id === txId);
+            if (!tx) return;
+
+            const konfirmasi = confirm(`Hapus riwayat transaksi ${tx.id} (${tx.unitTv} - ${formatRp(tx.totalBayar)})?\n\nData omzet akan diperbarui otomatis.`);
+            if (!konfirmasi) return;
+
+            appState.transactions = appState.transactions.filter(t => t.id !== txId);
+            saveState();
+            renderReport();
+            renderTvCards();
+            showToast(`Transaksi ${txId} berhasil dihapus`, 'info');
+
+            // Kirim perintah hapus ke Google Spreadsheet jika URL terhubung
+            const url = appState.settings.gsheetUrl;
+            if (url) {
+                try {
+                    await fetch(url, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'deleteTransaksi',
+                            id: txId
+                        })
+                    });
+                } catch (err) {
+                    console.warn('Gagal mengirim sinyal hapus ke Google Sheets:', err);
+                }
+            }
         }
 
         function resetDateFilter() {
