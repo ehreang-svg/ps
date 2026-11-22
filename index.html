@@ -1265,16 +1265,17 @@
 
                 if (tv.status === 'available') {
                     return `
-                    <div class="bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-lg">
-                        <div class="flex items-start justify-between">
+                    <div class="bg-slate-900 border border-emerald-500/30 hover:border-emerald-500/60 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-lg">
+                        <div class="flex items-start justify-between gap-2">
                             <div class="flex items-center gap-3">
-                                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-mono font-bold text-lg">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-mono font-bold text-lg">
                                     0${tv.id}
                                 </div>
                                 <div>
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
                                         <h3 class="font-bold text-lg text-white">${tv.name}</h3>
                                         <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300">${tv.label}</span>
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">KOSONG</span>
                                     </div>
                                     <p class="text-xs text-slate-400 mt-0.5">${(() => {
                                         const sr = getSheetRates();
@@ -1284,22 +1285,22 @@
                                     })()}</p>
                                 </div>
                             </div>
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Tersedia
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Tersedia (Kosong)
                             </span>
                         </div>
 
-                        <div class="my-5 py-4 rounded-xl bg-slate-950/60 border border-slate-800/80 text-center">
-                            <p class="text-xs text-slate-500 font-mono">SIAP DIGUNAKAN</p>
-                            <p class="text-2xl font-mono font-bold text-slate-600 mt-1">00:00:00</p>
+                        <div class="my-5 py-4 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-center">
+                            <p class="text-xs text-emerald-300 font-mono font-bold tracking-wide">TERSEDIA &bull; UNIT KOSONG</p>
+                            <p class="text-2xl font-mono font-bold text-emerald-400/80 mt-1">00:00:00</p>
                         </div>
 
                         ${adminMode ? `
                         <button onclick="openStartTvModal(${tv.id})" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/20 transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-play"></i> Mulai Sesi Billing
                         </button>` : `
-                        <div class="w-full py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400">
-                            <i class="fa-solid fa-tv mr-1.5 text-emerald-400"></i>Unit Kosong &bull; Hubungi Kasir untuk Main
+                        <div class="w-full py-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-center text-xs font-semibold text-emerald-300">
+                            <i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>TV Tersedia / Kosong &bull; Silakan Hubungi Kasir
                         </div>`}
                     </div>`;
                 }
