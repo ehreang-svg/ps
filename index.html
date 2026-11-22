@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LANANG 2 BAHAGIA PS3</title>
+    <title>PS3 Arena POS - Sistem Kasir Rental 4 TV & Thermal Print</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter & JetBrains Mono -->
@@ -108,7 +108,7 @@
                     <i class="fa-brands fa-playstation text-xl text-white"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-tight">LANANG 2 BAHAGIA <span class="text-indigo-400">PS3</span></h1>
+                    <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-tight">PS3 ARENA <span class="text-indigo-400">POS</span></h1>
                     <p class="text-[11px] text-slate-400 hidden sm:block">4 TV Billing &bull; Thermal Print &bull; Google Sheets</p>
                 </div>
             </div>
@@ -362,24 +362,22 @@
                         </div>
                     </div>
 
-                    <!-- Pengaturan Tarif Konsol -->
-                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <!-- Informasi Tarif dari Google Spreadsheet -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
                         <h3 class="font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-tags text-amber-400"></i> Pengaturan Tarif Rental PS3 (Per Jam)
+                            <i class="fa-solid fa-tags text-amber-400"></i> Tarif Rental PS3 (Sumber: Google Spreadsheet)
                         </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">Tarif PS3 Reguler (TV 01 & 02)</label>
-                                <input type="number" id="set-rate-reguler" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white font-mono">
+                        <p class="text-xs text-slate-400">Data tarif dan paket waktu diambil langsung dari tab <code class="text-emerald-400">Pengaturan_Tarif</code> di Google Spreadsheet. Ubah tarif di Spreadsheet lalu klik <b>Tarik Data dari Sheets</b>.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
+                                <span class="text-xs text-slate-400 block">Tarif PS3 Reguler (TV 01 & 02)</span>
+                                <input type="text" id="set-rate-reguler" readonly class="w-full bg-transparent text-sm text-emerald-400 font-mono font-bold mt-1 focus:outline-none">
                             </div>
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">Tarif PS3 VIP (TV 03 & 04)</label>
-                                <input type="number" id="set-rate-vip" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white font-mono">
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5">
+                                <span class="text-xs text-slate-400 block">Tarif PS3 VIP (TV 03 & 04)</span>
+                                <input type="text" id="set-rate-vip" readonly class="w-full bg-transparent text-sm text-emerald-400 font-mono font-bold mt-1 focus:outline-none">
                             </div>
                         </div>
-                        <button onclick="saveRatesAndStore()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-xs sm:text-sm font-semibold transition">
-                            Simpan Perubahan Tarif
-                        </button>
                     </div>
 
                     <!-- Pengaturan Password Akses -->
@@ -777,7 +775,8 @@
                 adminPassword: 'admin123',
                 kasirPassword: 'kasir123'
             },
-            tarifPackages: [], // Diisi otomatis jika ada dari tab Pengaturan_Tarif di Sheets
+            tarifPackages: [], // Diambil murni dari tab Pengaturan_Tarif di Google Spreadsheet
+            tarifLoadedFromSheet: false,
             tvs: [
                 { id: 1, name: 'TV 01', label: 'PS3 Reguler', status: 'available', customer: '', rateType: 'reguler', hourlyRate: 5000, fixedPrice: null, mode: 'fixed', startTime: null, durationMinutes: 0, fnbOrders: [], alarmPlayed: false, warningPlayed: false },
                 { id: 2, name: 'TV 02', label: 'PS3 Reguler', status: 'available', customer: '', rateType: 'reguler', hourlyRate: 5000, fixedPrice: null, mode: 'fixed', startTime: null, durationMinutes: 0, fnbOrders: [], alarmPlayed: false, warningPlayed: false },
@@ -823,9 +822,12 @@
                     if (!mergedSettings.kasirPassword) {
                         mergedSettings.kasirPassword = 'kasir123';
                     }
+                    const tarifPkgs = Array.isArray(parsed.tarifPackages) ? parsed.tarifPackages : [];
+                    const hasSheetTarif = Boolean(parsed.tarifLoadedFromSheet) && tarifPkgs.length > 0;
                     return {
                         settings: mergedSettings,
-                        tarifPackages: parsed.tarifPackages || [],
+                        tarifPackages: hasSheetTarif ? tarifPkgs : [],
+                        tarifLoadedFromSheet: hasSheetTarif,
                         tvs: parsed.tvs || defaultState.tvs,
                         menus: parsed.menus || defaultState.menus,
                         transactions: parsed.transactions || []
@@ -1152,6 +1154,35 @@
         }
 
         // --- 4. KALKULASI BILLING & TIMER REAL-TIME ---
+        function getSheetRates() {
+            const pkgs = Array.isArray(appState.tarifPackages) ? appState.tarifPackages : [];
+            let rateReguler = 0;
+            let rateVip = 0;
+
+            pkgs.forEach(pkg => {
+                const kode = String(pkg.Kode_Paket || '').toUpperCase();
+                const nama = String(pkg.Nama_Paket || '').toLowerCase();
+                const dur = Number(pkg.Durasi_Menit || 0);
+                const harga = Number(pkg.Harga || 0);
+                if (harga > 0) {
+                    const perHour = dur > 0 ? Math.round((harga / dur) * 60) : harga;
+                    if (kode.includes('REG') || nama.includes('reguler')) {
+                        if (!rateReguler || dur === 60) rateReguler = perHour;
+                    }
+                    if (kode.includes('VIP') || nama.includes('vip')) {
+                        if (!rateVip || dur === 60) rateVip = perHour;
+                    }
+                }
+            });
+
+            return {
+                hasSheetTarif: Boolean(appState.tarifLoadedFromSheet) && pkgs.length > 0,
+                rateReguler,
+                rateVip,
+                packages: pkgs
+            };
+        }
+
         function calculateTvBilling(tv) {
             if (tv.status === 'available' || !tv.startTime) {
                 return { elapsedSec: 0, remainingSec: 0, rentalCost: 0, fnbCost: 0, totalCost: 0, isTimeUp: false, isWarning: false, durationMinutes: 0 };
@@ -1245,7 +1276,12 @@
                                         <h3 class="font-bold text-lg text-white">${tv.name}</h3>
                                         <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-800 text-slate-300">${tv.label}</span>
                                     </div>
-                                    <p class="text-xs text-slate-400 mt-0.5">Tarif: ${formatRp(tv.rateType === 'vip' ? appState.settings.rateVip : appState.settings.rateReguler)}/jam</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">${(() => {
+                                        const sr = getSheetRates();
+                                        if (!sr.hasSheetTarif) return 'Tarif: Menunggu data Spreadsheet...';
+                                        const r = tv.rateType === 'vip' ? sr.rateVip : sr.rateReguler;
+                                        return r > 0 ? `Tarif Sheets: ${formatRp(r)}/jam` : 'Tarif Sheets belum diatur';
+                                    })()}</p>
                                 </div>
                             </div>
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1357,6 +1393,13 @@
         // --- 5. MODAL MULAI SEWA, EXTEND & PINDAH TV ---
         function openStartTvModal(tvId) {
             if (!isStaff()) return;
+            const sr = getSheetRates();
+            if (!sr.hasSheetTarif || sr.packages.length === 0) {
+                showToast('Data tarif belum tersedia dari Spreadsheet. Klik "Tarik Data dari Sheets" terlebih dahulu.', 'error');
+                pullFromSpreadsheet(true);
+                return;
+            }
+
             const tv = appState.tvs.find(t => t.id === tvId);
             document.getElementById('start-tv-id').value = tvId;
             document.getElementById('start-tv-title').textContent = tv.name;
@@ -1364,25 +1407,31 @@
 
             const rateSelect = document.getElementById('start-rate-type');
             rateSelect.innerHTML = `
-                <option value="reguler" ${tv.rateType === 'reguler' ? 'selected' : ''}>PS3 Reguler - ${formatRp(appState.settings.rateReguler)} / jam</option>
-                <option value="vip" ${tv.rateType === 'vip' ? 'selected' : ''}>PS3 VIP - ${formatRp(appState.settings.rateVip)} / jam</option>
+                <option value="reguler" ${tv.rateType === 'reguler' ? 'selected' : ''}>PS3 Reguler - ${sr.rateReguler > 0 ? formatRp(sr.rateReguler) + ' / jam' : 'Sesuai Paket Sheets'}</option>
+                <option value="vip" ${tv.rateType === 'vip' ? 'selected' : ''}>PS3 VIP - ${sr.rateVip > 0 ? formatRp(sr.rateVip) + ' / jam' : 'Sesuai Paket Sheets'}</option>
             `;
 
             const presetGrid = document.getElementById('start-preset-grid');
-            const presets = [
-                { type: 'minutes', minutes: 60, fixedPrice: null, label: '1 Jam' },
-                { type: 'minutes', minutes: 120, fixedPrice: null, label: '2 Jam' },
-                { type: 'minutes', minutes: 180, fixedPrice: null, label: '3 Jam' },
-                { type: 'minutes', minutes: 300, fixedPrice: null, label: '5 Jam' }
-            ];
+            const presets = [];
 
-            (appState.tarifPackages || []).forEach(pkg => {
+            sr.packages.forEach(pkg => {
                 const dur = Number(pkg.Durasi_Menit || 0);
                 const hrg = Number(pkg.Harga || 0);
                 if (dur > 0 && hrg > 0) {
-                    presets.push({ type: 'sheet_pkg', minutes: dur, fixedPrice: hrg, label: pkg.Nama_Paket || `${dur} Mnt` });
+                    presets.push({
+                        type: 'sheet_pkg',
+                        minutes: dur,
+                        fixedPrice: hrg,
+                        kodePaket: String(pkg.Kode_Paket || ''),
+                        label: pkg.Nama_Paket || `${dur} Mnt`
+                    });
                 }
             });
+
+            if (presets.length === 0) {
+                showToast('Tidak ada paket tarif valid pada tab Pengaturan_Tarif di Spreadsheet.', 'error');
+                return;
+            }
 
             presets.push({ type: 'custom', minutes: 90, fixedPrice: null, label: 'Custom' });
             presets.push({ type: 'open', minutes: 0, fixedPrice: null, label: 'Open / Loss' });
@@ -1420,21 +1469,27 @@
 
         function updateStartEstimate() {
             const rateType = document.getElementById('start-rate-type').value;
-            const hourly = rateType === 'vip' ? appState.settings.rateVip : appState.settings.rateReguler;
+            const sr = getSheetRates();
+            const hourly = rateType === 'vip' ? sr.rateVip : sr.rateReguler;
             const preview = document.getElementById('start-cost-preview');
 
             if (selectedStartPreset.type === 'open') {
-                preview.textContent = `Hitung Maju (${formatRp(hourly)}/jam)`;
+                preview.textContent = hourly > 0 ? `Hitung Maju (${formatRp(hourly)}/jam)` : 'Hitung Maju (Tarif Sheets)';
                 return;
             }
             if (selectedStartPreset.type === 'sheet_pkg' && selectedStartPreset.fixedPrice) {
-                preview.textContent = `${formatRp(selectedStartPreset.fixedPrice)} (${selectedStartPreset.minutes} mnt)`;
+                const kode = (selectedStartPreset.kodePaket || '').toUpperCase();
+                const matchType = (rateType === 'vip' && kode.includes('VIP')) || (rateType === 'reguler' && kode.includes('REG'));
+                const finalPrice = (!kode || matchType || hourly <= 0)
+                    ? Number(selectedStartPreset.fixedPrice)
+                    : Math.round((selectedStartPreset.minutes / 60) * hourly);
+                preview.textContent = `${formatRp(finalPrice)} (${selectedStartPreset.minutes} mnt)`;
                 return;
             }
             const mins = selectedStartPreset.type === 'custom'
                 ? parseInt(document.getElementById('start-custom-minutes').value || 0)
                 : selectedStartPreset.minutes;
-            const est = Math.round((mins / 60) * hourly);
+            const est = hourly > 0 ? Math.round((mins / 60) * hourly) : 0;
             preview.textContent = formatRp(est);
         }
 
@@ -1444,7 +1499,8 @@
             const tv = appState.tvs.find(t => t.id === tvId);
             const customer = document.getElementById('start-customer-name').value.trim() || 'Pelanggan Umum';
             const rateType = document.getElementById('start-rate-type').value;
-            const hourlyRate = rateType === 'vip' ? appState.settings.rateVip : appState.settings.rateReguler;
+            const sr = getSheetRates();
+            const hourlyRate = rateType === 'vip' ? sr.rateVip : sr.rateReguler;
 
             let mode = 'fixed';
             let durationMinutes = 60;
@@ -1457,7 +1513,11 @@
                 durationMinutes = Math.max(5, parseInt(document.getElementById('start-custom-minutes').value || 60));
             } else if (selectedStartPreset.type === 'sheet_pkg') {
                 durationMinutes = selectedStartPreset.minutes;
-                fixedPrice = selectedStartPreset.fixedPrice;
+                const kode = (selectedStartPreset.kodePaket || '').toUpperCase();
+                const matchType = (rateType === 'vip' && kode.includes('VIP')) || (rateType === 'reguler' && kode.includes('REG'));
+                fixedPrice = (!kode || matchType || hourlyRate <= 0)
+                    ? Number(selectedStartPreset.fixedPrice)
+                    : Math.round((durationMinutes / 60) * hourlyRate);
             } else {
                 durationMinutes = selectedStartPreset.minutes;
             }
@@ -2451,6 +2511,7 @@
 
                     if (Array.isArray(tarif) && tarif.length > 0) {
                         appState.tarifPackages = tarif;
+                        appState.tarifLoadedFromSheet = true;
                         const regRow = tarif.find(r => String(r.Kode_Paket || '').toUpperCase().includes('REG'));
                         const vipRow = tarif.find(r => String(r.Kode_Paket || '').toUpperCase().includes('VIP'));
                         if (regRow && Number(regRow.Harga) > 0) appState.settings.rateReguler = Number(regRow.Harga);
@@ -2517,8 +2578,9 @@
             document.getElementById('set-store-address').value = appState.settings.storeAddress;
             document.getElementById('set-store-phone').value = appState.settings.storePhone || '';
             document.getElementById('set-store-footer').value = appState.settings.storeFooter || 'Terima kasih telah bermain!';
-            document.getElementById('set-rate-reguler').value = appState.settings.rateReguler;
-            document.getElementById('set-rate-vip').value = appState.settings.rateVip;
+            const sr = getSheetRates();
+            document.getElementById('set-rate-reguler').value = sr.hasSheetTarif && sr.rateReguler > 0 ? `${formatRp(sr.rateReguler)} / jam` : 'Belum ada data Sheets';
+            document.getElementById('set-rate-vip').value = sr.hasSheetTarif && sr.rateVip > 0 ? `${formatRp(sr.rateVip)} / jam` : 'Belum ada data Sheets';
             document.getElementById('set-pass-admin').value = appState.settings.adminPassword || 'admin123';
             document.getElementById('set-pass-kasir').value = appState.settings.kasirPassword || 'kasir123';
             highlightPaperButton(appState.settings.paperSize || '80mm');
@@ -2560,8 +2622,7 @@
             appState.settings.storeAddress = document.getElementById('set-store-address').value.trim() || '-';
             appState.settings.storePhone = document.getElementById('set-store-phone').value.trim();
             appState.settings.storeFooter = document.getElementById('set-store-footer').value.trim() || 'Terima kasih telah bermain!';
-            appState.settings.rateReguler = parseInt(document.getElementById('set-rate-reguler').value || 5000);
-            appState.settings.rateVip = parseInt(document.getElementById('set-rate-vip').value || 7000);
+            // Tarif tidak disimpan secara lokal; selalu bersumber dari tab Pengaturan_Tarif di Google Spreadsheet
 
             saveState();
             renderTvCards();
