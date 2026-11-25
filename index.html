@@ -180,7 +180,7 @@
 
         <!-- ==================== TAB 1: DASHBOARD 4 TV ==================== -->
         <section id="view-dashboard" class="space-y-4 sm:space-y-6">
-            <!-- Quick Stats Bar (Mobile Horizontal Scroll / Grid) -->
+            <!-- Quick Stats Bar -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
                 <div class="bg-gradient-to-br from-slate-900 to-slate-900/70 border border-slate-800/90 rounded-2xl p-3.5 sm:p-4 flex items-center justify-between shadow-md">
                     <div class="min-w-0">
@@ -365,8 +365,8 @@
                                 <input type="text" id="set-store-phone" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white font-mono">
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="block text-xs text-slate-400 mb-1">Pesan Footer Struk (Bisa multi-baris, tekan Enter untuk baris baru)</label>
-                                <textarea id="set-store-footer" rows="2" placeholder="Contoh: Terima kasih telah bermain!&#10;Simpan struk ini sebagai bukti sah." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white leading-relaxed"></textarea>
+                                <label class="block text-xs text-slate-400 mb-1">Pesan Footer Struk (Tekan Enter untuk baris baru)</label>
+                                <textarea id="set-store-footer" rows="3" placeholder="Contoh: Terima kasih telah bermain!&#10;Simpan struk ini sebagai bukti sah." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white leading-relaxed"></textarea>
                             </div>
                         </div>
 
@@ -471,7 +471,7 @@
         </section>
     </main>
 
-    <!-- Mobile Bottom Navigation Bar (App-Like Experience di HP) -->
+    <!-- Mobile Bottom Navigation Bar -->
     <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800/90 px-2 pt-1.5 pb-2 mobile-bottom-nav no-print shadow-[0_-8px_25px_rgba(0,0,0,0.45)]">
         <div class="grid grid-cols-4 gap-1 max-w-md mx-auto">
             <button onclick="switchTab('dashboard')" id="mob-tab-dashboard" class="mob-tab-btn tap-scale flex flex-col items-center justify-center py-1.5 px-1 rounded-xl bg-indigo-600/20 text-indigo-400 transition-all">
@@ -843,7 +843,7 @@
         };
 
         let appState = loadState();
-        let activeRole = sessionStorage.getItem(AUTH_SESSION_KEY) || null; // 'admin' | 'kasir' | 'customer' | null
+        let activeRole = sessionStorage.getItem(AUTH_SESSION_KEY) || null;
         let selectedLoginRole = 'admin';
         let isAlarmMuted = false;
         let selectedStartPreset = { type: 'minutes', minutes: 60, fixedPrice: null, label: '1 Jam' };
@@ -855,17 +855,23 @@
 
         function normalizeFooterText(text) {
             return String(text || 'Terima kasih telah bermain!')
-                .replace(/\r\n/g, '\n')
-                .replace(/\r/g, '\n')
+                .replace(/\\r\\n|\\n|\\r/g, '\n')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/\r\n|\r/g, '\n')
                 .trim();
         }
 
         function formatFooterHtml(text) {
-            const escaped = normalizeFooterText(text)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            return escaped.replace(/\n/g, '<br>');
+            return normalizeFooterText(text)
+                .split('\n')
+                .map(line => {
+                    const safe = line
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    return `<div style="display:block;width:100%;">${safe || '&nbsp;'}</div>`;
+                })
+                .join('');
         }
 
         function loadState() {
@@ -2185,8 +2191,8 @@
                     <div class="flex justify-between"><span>Kembali:</span><span>Rp ${Number(tx.kembalian).toLocaleString('id-ID')}</span></div>
                 </div>
                 <div class="text-center border-t border-dashed border-black pt-2 mt-2.5 text-[10px] leading-snug">
-                    ${formatFooterHtml(appState.settings.storeFooter)}<br>
-                    *** LUNAS ***
+                    ${formatFooterHtml(appState.settings.storeFooter)}
+                    <div style="display:block;width:100%;">*** LUNAS ***</div>
                     <div class="mt-2 flex flex-col items-center justify-center">
                         <div id="receipt-qrcode" class="p-1 bg-white inline-block"></div>
                         <div class="text-[9px] mt-1 font-mono break-all">https://ehreang-svg.github.io/ps/</div>
@@ -2321,9 +2327,13 @@
                 const storeLen = qrBytes.length + 3;
                 const pL = storeLen & 0xFF;
                 const pH = (storeLen >> 8) & 0xFF;
-                const cleanFooter = normalizeFooterText(appState.settings.storeFooter);
+                const footerLines = normalizeFooterText(appState.settings.storeFooter).split('\n');
 
-                esc += '\x1B\x61\x01' + cleanFooter + '\n*** LUNAS ***\n\n';
+                esc += '\x1B\x61\x01';
+                footerLines.forEach(fLine => {
+                    esc += fLine + '\n';
+                });
+                esc += '*** LUNAS ***\n\n';
                 // Perintah ESC/POS Native QR Code (Model 2, Ukuran Modul 5, Error Correction M)
                 esc += '\x1D\x28\x6B\x04\x00\x31\x41\x32\x00';
                 esc += '\x1D\x28\x6B\x03\x00\x31\x43\x05';
@@ -2903,4 +2913,3 @@
     </script>
 </body>
 </html>
-```[cite: 1]
