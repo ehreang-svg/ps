@@ -357,8 +357,8 @@
                                 <input type="text" id="set-store-name" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white">
                             </div>
                             <div class="sm:col-span-2">
-                                <label class="block text-xs text-slate-400 mb-1">Alamat Lengkap</label>
-                                <input type="text" id="set-store-address" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white">
+                                <label class="block text-xs text-slate-400 mb-1">Alamat Lengkap (Tekan Enter untuk baris baru)</label>
+                                <textarea id="set-store-address" rows="2" placeholder="Contoh: Jl. Raya Gaming No. 45&#10;Kec. Arjawinangun, Cirebon" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white leading-relaxed"></textarea>
                             </div>
                             <div>
                                 <label class="block text-xs text-slate-400 mb-1">No. HP / WhatsApp</label>
@@ -853,16 +853,18 @@
         let bluetoothDevice = null;
         let bluetoothCharacteristic = null;
 
-        function normalizeFooterText(text) {
-            return String(text || 'Terima kasih telah bermain!')
+        function normalizeMultilineText(text, fallback = '') {
+            const val = String(text ?? '').trim();
+            const source = val ? String(text) : fallback;
+            return source
                 .replace(/\\r\\n|\\n|\\r/g, '\n')
                 .replace(/<br\s*\/?>/gi, '\n')
                 .replace(/\r\n|\r/g, '\n')
                 .trim();
         }
 
-        function formatFooterHtml(text) {
-            return normalizeFooterText(text)
+        function formatMultilineHtml(text, fallback = '') {
+            return normalizeMultilineText(text, fallback)
                 .split('\n')
                 .map(line => {
                     const safe = line
@@ -880,7 +882,8 @@
                 if (raw) {
                     const parsed = JSON.parse(raw);
                     const mergedSettings = { ...defaultState.settings, ...(parsed.settings || {}) };
-                    mergedSettings.storeFooter = normalizeFooterText(mergedSettings.storeFooter);
+                    mergedSettings.storeAddress = normalizeMultilineText(mergedSettings.storeAddress, 'Jl. Raya Gaming No. 45');
+                    mergedSettings.storeFooter = normalizeMultilineText(mergedSettings.storeFooter, 'Terima kasih telah bermain!');
                     if (!mergedSettings.gsheetUrl) {
                         mergedSettings.gsheetUrl = DEFAULT_GSHEET_URL;
                     }
@@ -2164,7 +2167,7 @@
             const html = `
                 <div class="text-center border-b border-dashed border-black pb-2 mb-2">
                     <div class="font-bold text-xs uppercase tracking-wide">${appState.settings.storeName}</div>
-                    <div class="text-[10px]">${appState.settings.storeAddress}</div>
+                    <div class="text-[10px] leading-snug">${formatMultilineHtml(appState.settings.storeAddress, '-')}</div>
                     ${appState.settings.storePhone ? `<div class="text-[10px]">Telp/WA: ${appState.settings.storePhone}</div>` : ''}
                 </div>
                 <div class="space-y-0.5 border-b border-dashed border-black pb-2 mb-2">
@@ -2191,7 +2194,7 @@
                     <div class="flex justify-between"><span>Kembali:</span><span>Rp ${Number(tx.kembalian).toLocaleString('id-ID')}</span></div>
                 </div>
                 <div class="text-center border-t border-dashed border-black pt-2 mt-2.5 text-[10px] leading-snug">
-                    ${formatFooterHtml(appState.settings.storeFooter)}
+                    ${formatMultilineHtml(appState.settings.storeFooter, 'Terima kasih telah bermain!')}
                     <div style="display:block;width:100%;">*** LUNAS ***</div>
                     <div class="mt-2 flex flex-col items-center justify-center">
                         <div id="receipt-qrcode" class="p-1 bg-white inline-block"></div>
@@ -2295,10 +2298,14 @@
                     return left + ' '.repeat(space) + right + '\n';
                 };
 
+                const addressLines = normalizeMultilineText(appState.settings.storeAddress, '-').split('\n');
+
                 let esc = '\x1B\x40';
                 esc += '\x1B\x61\x01';
                 esc += '\x1B\x45\x01' + appState.settings.storeName.toUpperCase() + '\n\x1B\x45\x00';
-                esc += appState.settings.storeAddress + '\n';
+                addressLines.forEach(addrLine => {
+                    esc += addrLine + '\n';
+                });
                 if (appState.settings.storePhone) esc += 'Telp: ' + appState.settings.storePhone + '\n';
                 esc += line;
                 esc += '\x1B\x61\x00';
@@ -2327,7 +2334,7 @@
                 const storeLen = qrBytes.length + 3;
                 const pL = storeLen & 0xFF;
                 const pH = (storeLen >> 8) & 0xFF;
-                const footerLines = normalizeFooterText(appState.settings.storeFooter).split('\n');
+                const footerLines = normalizeMultilineText(appState.settings.storeFooter, 'Terima kasih telah bermain!').split('\n');
 
                 esc += '\x1B\x61\x01';
                 footerLines.forEach(fLine => {
@@ -2787,9 +2794,9 @@
         function loadSettingsForm() {
             document.getElementById('gsheet-url-input').value = appState.settings.gsheetUrl || DEFAULT_GSHEET_URL;
             document.getElementById('set-store-name').value = appState.settings.storeName;
-            document.getElementById('set-store-address').value = appState.settings.storeAddress;
+            document.getElementById('set-store-address').value = normalizeMultilineText(appState.settings.storeAddress, '');
             document.getElementById('set-store-phone').value = appState.settings.storePhone || '';
-            document.getElementById('set-store-footer').value = normalizeFooterText(appState.settings.storeFooter);
+            document.getElementById('set-store-footer').value = normalizeMultilineText(appState.settings.storeFooter, 'Terima kasih telah bermain!');
             const sr = getSheetRates();
             document.getElementById('set-rate-reguler').value = sr.hasSheetTarif && sr.rateReguler > 0 ? `${formatRp(sr.rateReguler)} / jam` : 'Belum ada data Sheets';
             document.getElementById('set-rate-vip').value = sr.hasSheetTarif && sr.rateVip > 0 ? `${formatRp(sr.rateVip)} / jam` : 'Belum ada data Sheets';
@@ -2831,9 +2838,9 @@
 
         function saveRatesAndStore() {
             appState.settings.storeName = document.getElementById('set-store-name').value.trim() || 'PS3 ARENA GAMING';
-            appState.settings.storeAddress = document.getElementById('set-store-address').value.trim() || '-';
+            appState.settings.storeAddress = normalizeMultilineText(document.getElementById('set-store-address').value, '-');
             appState.settings.storePhone = document.getElementById('set-store-phone').value.trim();
-            appState.settings.storeFooter = normalizeFooterText(document.getElementById('set-store-footer').value);
+            appState.settings.storeFooter = normalizeMultilineText(document.getElementById('set-store-footer').value, 'Terima kasih telah bermain!');
 
             saveState();
             renderTvCards();
