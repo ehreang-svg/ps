@@ -876,6 +876,13 @@
                 .join('');
         }
 
+        function toLocalDateISO(dateInput = new Date()) {
+            const dt = dateInput instanceof Date ? dateInput : new Date(dateInput);
+            if (Number.isNaN(dt.getTime())) return '';
+            const offset = dt.getTimezoneOffset() * 60000;
+            return new Date(dt.getTime() - offset).toISOString().split('T')[0];
+        }
+
         function loadState() {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
@@ -1149,9 +1156,7 @@
         }
 
         function getTodayISO() {
-            const now = new Date();
-            const offset = now.getTimezoneOffset() * 60000;
-            return new Date(now - offset).toISOString().split('T')[0];
+            return toLocalDateISO(new Date());
         }
 
         function playAlarmSound(isWarning = false) {
@@ -1251,7 +1256,13 @@
             }
 
             if (tabName === 'kantin') renderKantinGrid();
-            if (tabName === 'laporan') renderReport();
+            if (tabName === 'laporan') {
+                const filterDateEl = document.getElementById('filter-date');
+                if (filterDateEl && !filterDateEl.dataset.userCleared && !filterDateEl.value) {
+                    filterDateEl.value = getTodayISO();
+                }
+                renderReport();
+            }
             if (tabName === 'pengaturan') loadSettingsForm();
         }
 
@@ -2038,12 +2049,13 @@
 
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
-            const idStr = `TRX-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${String(Date.now()).slice(-4)}`;
+            const todayLocal = getTodayISO();
+            const idStr = `TRX-${todayLocal.replace(/-/g, '')}-${String(Date.now()).slice(-4)}`;
             const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
             const tx = {
                 id: idStr,
-                tanggal: getTodayISO(),
+                tanggal: todayLocal,
                 waktu: timeStr,
                 unitTv: currentCheckoutData.unitTv,
                 pelanggan: currentCheckoutData.pelanggan,
@@ -2365,7 +2377,11 @@
 
         // --- 9. LAPORAN & RIWAYAT TRANSAKSI ---
         function renderReport() {
-            const filterDate = document.getElementById('filter-date').value;
+            const filterDateEl = document.getElementById('filter-date');
+            if (filterDateEl && !filterDateEl.dataset.userCleared && !filterDateEl.value) {
+                filterDateEl.value = getTodayISO();
+            }
+            const filterDate = filterDateEl ? filterDateEl.value : '';
             let list = appState.transactions;
             if (filterDate) {
                 list = list.filter(t => t.tanggal === filterDate);
@@ -2463,7 +2479,9 @@
         }
 
         function resetDateFilter() {
-            document.getElementById('filter-date').value = '';
+            const el = document.getElementById('filter-date');
+            el.value = '';
+            el.dataset.userCleared = '1';
             renderReport();
         }
 
@@ -2740,11 +2758,21 @@
                     if (Array.isArray(transaksi) && transaksi.length > 0) {
                         const localUnsynced = appState.transactions.filter(t => !t.synced);
                         const sheetTxs = transaksi.map(r => {
-                            let cleanDate = String(r.Tanggal || '').split('T')[0];
+                            const rawDate = String(r.Tanggal || '').trim();
+                            let cleanDate = rawDate;
+                            if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+                                cleanDate = rawDate;
+                            } else if (rawDate.includes('T') || /^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+                                const parsedDt = new Date(rawDate);
+                                cleanDate = !Number.isNaN(parsedDt.getTime())
+                                    ? toLocalDateISO(parsedDt)
+                                    : rawDate.split('T')[0];
+                            }
+
                             let cleanTime = String(r.Waktu_Selesai || '');
                             if (cleanTime.includes('T')) {
                                 const dt = new Date(cleanTime);
-                                cleanTime = dt.toTimeString().slice(0, 8);
+                                cleanTime = !Number.isNaN(dt.getTime()) ? dt.toTimeString().slice(0, 8) : cleanTime;
                             }
                             return {
                                 id: r.ID_Transaksi,
@@ -2871,7 +2899,8 @@
         }
 
         window.onload = function () {
-            document.getElementById('filter-date').value = getTodayISO();
+            const filterDateEl = document.getElementById('filter-date');
+            if (filterDateEl) filterDateEl.value = getTodayISO();
             applyThermalPaperCSS(appState.settings.paperSize || '80mm');
             updateClock();
             renderTvCards();
